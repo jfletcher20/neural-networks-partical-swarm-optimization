@@ -43,12 +43,18 @@ public:
                 std::stringstream ss(line);
                 std::string cell;
                 while (std::getline(ss, cell, ',')) {
-                    if (cell == "Iris-setosa" || cell == "Adelie") {
+                    if (cell == "Iris-setosa" || cell == "Adelie" || cell == "1") {
                         row.push_back(0);
-                    } else if (cell == "Iris-versicolor" || cell == "Chinstrap") {
+                        row.push_back(0);
                         row.push_back(1);
-                    } else if (cell == "Iris-virginica" || cell == "Gentoo") {
-                        row.push_back(2);
+                    } else if (cell == "Iris-versicolor" || cell == "Chinstrap" || cell == "2") {
+                        row.push_back(0);
+                        row.push_back(1);
+                        row.push_back(0);
+                    } else if (cell == "Iris-virginica" || cell == "Gentoo" || cell ==  "3") {
+                        row.push_back(1);
+                        row.push_back(0);
+                        row.push_back(0);
                     } else {
                         row.push_back(std::stod(cell));
                     }
@@ -106,15 +112,15 @@ public:
                 std::stringstream ss(line);
                 std::string cell;
                 while (std::getline(ss, cell, ',')) {
-                    if (cell == "Iris-setosa" || cell == "Adelie") {
+                    if (cell == "Iris-setosa" || cell == "Adelie" || cell == "1") {
                         row.push_back(0);
                         row.push_back(0);
                         row.push_back(1);
-                    } else if (cell == "Iris-versicolor" || cell == "Chinstrap") {
+                    } else if (cell == "Iris-versicolor" || cell == "Chinstrap" || cell == "2") {
                         row.push_back(0);
                         row.push_back(1);
                         row.push_back(0);
-                    } else if (cell == "Iris-virginica" || cell == "Gentoo") {
+                    } else if (cell == "Iris-virginica" || cell == "Gentoo" || cell == "3") {
                         row.push_back(1);
                         row.push_back(0);
                         row.push_back(0);
@@ -145,15 +151,15 @@ public:
                 std::stringstream ss(line);
                 std::string cell;
                 while (std::getline(ss, cell, ',')) {
-                    if (cell == "Iris-setosa" || cell == "Adelie") {
+                    if (cell == "Iris-setosa" || cell == "Adelie" || cell == "1") {
                         row.push_back(0);
                         row.push_back(0);
                         row.push_back(1);
-                    } else if (cell == "Iris-versicolor" || cell == "Chinstrap") {
+                    } else if (cell == "Iris-versicolor" || cell == "Chinstrap" || cell == "2") {
                         row.push_back(0);
                         row.push_back(1);
                         row.push_back(0);
-                    } else if (cell == "Iris-virginica" || cell == "Gentoo") {
+                    } else if (cell == "Iris-virginica" || cell == "Gentoo" || cell == "3") {
                         row.push_back(1);
                         row.push_back(0);
                         row.push_back(0);
