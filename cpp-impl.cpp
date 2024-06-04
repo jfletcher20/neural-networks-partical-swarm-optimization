@@ -136,8 +136,8 @@ vector<double> NeuralNetwork::ComputeOutputs(const vector<double>& xValues) {
     for (int i = 0; i < numOutput; ++i)
         oSums[i] += oBiases[i];
 
-    int predictedClass = distance(oSums.begin(), max_element(oSums.begin(), oSums.end()));
-    vector<double> outputs(1, predictedClass);
+		vector<double> softOut = Softmax(oSums);
+    copy(softOut.begin(), softOut.end(), outputs.begin());
 
     return outputs;
 }
@@ -261,9 +261,9 @@ double NeuralNetwork::Accuracy(const vector<vector<double>>& data) {
     int numWrong = 0;
     for (const auto& row : data) {
         vector<double> xValues(row.begin(), row.begin() + numInput);
-        int actual = row[row.size() - 1];
+        int actual = max_element(row.begin() + numInput, row.end()) - (row.begin() + numInput);
         vector<double> yValues = ComputeOutputs(xValues);
-        int predicted = yValues[yValues.size() - 1];
+        int predicted = max_element(yValues.begin(), yValues.end()) - yValues.begin();
         cout << (actual == predicted ? "  \t" : " X\t") << actual << " vs " << predicted << endl;
         if (predicted == actual) {
             ++numCorrect;
