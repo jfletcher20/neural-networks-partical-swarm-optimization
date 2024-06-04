@@ -181,7 +181,7 @@ void NeuralNetwork::Shuffle(vector<int>& sequence, mt19937& rnd) {
 
 vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError) {
     mt19937 mt(time(nullptr));
-    uniform_real_distribution<double> distPosition(-1.0, 106.0);
+    uniform_real_distribution<double> distPosition(-5.0, 5.0);
     uniform_real_distribution<double> distVelocity(-1.0, 1.0);
     uniform_real_distribution<double> distProb(0.0, 1.0);
 
