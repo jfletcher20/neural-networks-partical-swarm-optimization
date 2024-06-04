@@ -7,6 +7,7 @@
 #include <limits>
 #include <random>
 #include <vector>
+#include <string>
 #include <cmath>
 
 using namespace std;
@@ -300,16 +301,31 @@ Particle::Particle(const vector<double>& position, double error, const vector<do
     : position(position), error(error), velocity(velocity), bestPosition(bestPosition), bestError(bestError) {}
 
 int main() {
-    // originalni IRIS dataset je po redu prvih 50 redova Iris-setosa, zatim 50 redova Iris-versicolor, te na kraju 50 redova Iris-virginica
-    // to nije pogodno za treniranje jer će neuronska mreža imati više podataka za Iris-setosa nego za Iris-versicolor i Iris-virginica ovisno o količini podataka koje uzmemo
-    // stoga je potrebno pomiješati podatke, ili ih rasporediti tako da se svaka klasa naizmjenice pojavljuje
-    IRISReader::shuffleCSV("IRIS.csv");
 
     cout << "\nSeminar: Implementacija neuronske mreže nad podacima iz IRIS.csv, koristeći PSO.\n";
     cout << "Autori: Joshua Lee Fletcher, Noa Midzic, Marko Novak\n";
+
+    string file_name = "";
+    int dataset = 0;
+    cout << " << Odaberite koji dataset želite koristiti (1, 2): " << endl;
+    cout << "\t1 - IRIS.csv" << endl;
+    cout << "\t2 - PENGUINS.csv" << endl;
+    cout << endl << " >> "; cin >> dataset; cout << endl;
+
+    if (!dataset || dataset > 2) return -1;
+    switch(dataset) {
+        case 1: file_name = "IRIS.csv"; break;
+        case 2: file_name = "PENGUINS.csv"; break;
+        default: file_name = "ERROR"; break;
+    }
+
+    // originalni IRIS dataset je po redu prvih 50 redova Iris-setosa, zatim 50 redova Iris-versicolor, te na kraju 50 redova Iris-virginica
+    // to nije pogodno za treniranje jer će neuronska mreža imati više podataka za Iris-setosa nego za Iris-versicolor i Iris-virginica ovisno o količini podataka koje uzmemo
+    // stoga je potrebno pomiješati podatke, ili ih rasporediti tako da se svaka klasa naizmjenice pojavljuje
+    IRISReader::shuffleCSV(file_name);
     
-    vector<vector<double>> trainData = IRISReader::readFirstNRows("IRIS.csv", IRISReader::numRows("IRIS.csv") * .5);
-    vector<vector<double>> testData = IRISReader::readFromRowN("IRIS.csv", IRISReader::numRows("IRIS.csv") * .5);
+    vector<vector<double>> trainData = IRISReader::readFirstNRows(file_name, IRISReader::numRows(file_name) * .5);
+    vector<vector<double>> testData = IRISReader::readFromRowN(file_name, IRISReader::numRows(file_name) * .5);
 
     try {
 	    NeuralNetwork neuralNetwork(4, 6, 3);

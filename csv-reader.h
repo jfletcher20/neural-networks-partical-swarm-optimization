@@ -7,9 +7,12 @@
 #include <algorithm>
 #include <iostream>
 
+#define PATH "./datasets/"
+
 class IRISReader {
 public:
-    static void shuffleCSV(const std::string& filename) {
+    static void shuffleCSV(const std::string& file_name) {
+        std::string filename = PATH + file_name;
         std::ifstream file(filename);
         std::vector<std::string> lines;
         if (file.is_open()) {
@@ -28,7 +31,8 @@ public:
         } else std::cerr << "Error: Unable to open file for reading." << std::endl;
     }
 
-    static std::vector<std::vector<double>> readCSV(const std::string& filename) {
+    static std::vector<std::vector<double>> readCSV(const std::string& file_name) {
+        std::string filename = PATH + file_name;
         std::ifstream file(filename);
         std::vector<std::vector<double>> data;
         if (file.is_open()) {
@@ -40,11 +44,11 @@ public:
                 std::stringstream ss(line);
                 std::string cell;
                 while (std::getline(ss, cell, ',')) {
-                    if (cell == "Iris-setosa") {
+                    if (cell == "Iris-setosa" || cell == "Adelie") {
                         row.push_back(0);
-                    } else if (cell == "Iris-versicolor") {
+                    } else if (cell == "Iris-versicolor" || cell == "Chinstrap") {
                         row.push_back(1);
-                    } else if (cell == "Iris-virginica") {
+                    } else if (cell == "Iris-virginica" || cell == "Gentoo") {
                         row.push_back(2);
                     } else {
                         row.push_back(std::stod(cell));
@@ -57,7 +61,8 @@ public:
         return data;
     }
 
-    static int numRows(const std::string& filename) {
+    static int numRows(const std::string& file_name) {
+        std::string filename = PATH + file_name;
         int count = 0;
         std::ifstream file(filename);
         if (file.is_open()) {
@@ -68,7 +73,8 @@ public:
         return count - 1;
     }
 
-    static int numColumns(const std::string& filename) {
+    static int numColumns(const std::string& file_name) {
+        std::string filename = PATH + file_name;
         int count = 0;
         std::ifstream file(filename);
         if (file.is_open()) {
@@ -82,11 +88,13 @@ public:
         return count;
     }
 
-    static int numClasses(const std::string& filename) {
+    static int numClasses(const std::string& file_name) {
+        std::string filename = PATH + file_name;
         return 3;
     }
 
-    static std::vector<std::vector<double>> readFirstNRows(const std::string& filename, int n) {
+    static std::vector<std::vector<double>> readFirstNRows(const std::string& file_name, int n) {
+        std::string filename = PATH + file_name;
         std::ifstream file(filename);
         std::vector<std::vector<double>> data;
         if (file.is_open()) {
@@ -99,11 +107,11 @@ public:
                 std::stringstream ss(line);
                 std::string cell;
                 while (std::getline(ss, cell, ',')) {
-                    if (cell == "Iris-setosa") {
+                    if (cell == "Iris-setosa" || cell == "Adelie") {
                         row.push_back(0);
-                    } else if (cell == "Iris-versicolor") {
+                    } else if (cell == "Iris-versicolor" || cell == "Chinstrap") {
                         row.push_back(1);
-                    } else if (cell == "Iris-virginica") {
+                    } else if (cell == "Iris-virginica" || cell == "Gentoo") {
                         row.push_back(2);
                     } else {
                         row.push_back(std::stod(cell));
@@ -117,7 +125,8 @@ public:
         return data;
     }
 
-    static std::vector<std::vector<double>> readFromRowN(const std::string& filename, int n) {
+    static std::vector<std::vector<double>> readFromRowN(const std::string& file_name, int n) {
+        std::string filename = PATH + file_name;
         std::ifstream file(filename);
         std::vector<std::vector<double>> data;
         if (file.is_open()) {
@@ -131,11 +140,11 @@ public:
                 std::stringstream ss(line);
                 std::string cell;
                 while (std::getline(ss, cell, ',')) {
-                    if (cell == "Iris-setosa") {
+                    if (cell == "Iris-setosa" || cell == "Adelie") {
                         row.push_back(0);
-                    } else if (cell == "Iris-versicolor") {
+                    } else if (cell == "Iris-versicolor" || cell == "Chinstrap") {
                         row.push_back(1);
-                    } else if (cell == "Iris-virginica") {
+                    } else if (cell == "Iris-virginica" || cell == "Gentoo") {
                         row.push_back(2);
                     } else {
                         row.push_back(std::stod(cell));
