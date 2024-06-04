@@ -38,7 +38,7 @@ public:
     void SetWeights(const vector<double>& weights);
     vector<double> GetWeights() const;
     vector<double> ComputeOutputs(const vector<double>& xValues);
-    vector<double> Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError, double probDeath);
+    vector<double> Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError);
     double Accuracy(const vector<vector<double>>& data);
 
 private:
@@ -179,7 +179,7 @@ void NeuralNetwork::Shuffle(vector<int>& sequence, mt19937& rnd) {
     shuffle(sequence.begin(), sequence.end(), rnd);
 }
 
-vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError, double probDeath) {
+vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError) {
     mt19937 mt(time(nullptr));
     uniform_real_distribution<double> distPosition(-10.0, 10.0);
     uniform_real_distribution<double> distVelocity(-1.0, 1.0);
@@ -249,18 +249,7 @@ vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int
                 bestGlobalPosition = currP.position;
             }
 
-            if (distProb(mt) < probDeath) {
-                for (double& w : currP.position) {
-                    w = distPosition(mt);
-                }
-                currP.error = MeanSquaredError(trainData, currP.position);
-                currP.bestPosition = currP.position;
-                currP.bestError = currP.error;
-                if (currP.error < bestGlobalError) {
-                    bestGlobalError = currP.error;
-                    bestGlobalPosition = currP.position;
-                }
-            }
+            
         }
     }
     SetWeights(bestGlobalPosition);
@@ -330,7 +319,7 @@ int main() {
     try {
 	    NeuralNetwork neuralNetwork(4, 6, 3);
         cout << "Training the neural network..." << endl << endl;
-	    vector<double> best = neuralNetwork.Train(trainData, 6, 1200, 0.05, 0.01);
+	    vector<double> best = neuralNetwork.Train(trainData, 6, 1200, 0.05);
 	
 	    ShowVector(best, 10, 3, true);
 	

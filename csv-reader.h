@@ -17,7 +17,6 @@ public:
         std::vector<std::string> lines;
         if (file.is_open()) {
             std::string line;
-            std::getline(file, line);
             while (std::getline(file, line)) lines.push_back(line);
             file.close();
             std::random_shuffle(lines.begin(), lines.end());
