@@ -9,7 +9,7 @@
 
 #define PATH "./datasets/"
 
-class IRISReader {
+class CSVReader {
 public:
     static void shuffleCSV(const std::string& file_name) {
         std::string filename = PATH + file_name;

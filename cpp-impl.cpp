@@ -1,4 +1,5 @@
 #include "csv-reader.h"
+#include "csv-writer.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -11,6 +12,8 @@
 #include <cmath>
 
 using namespace std;
+
+string dataset_name = "";
 
 void ShowVector(const vector<double>& vector, int valsPerRow, int decimals, bool newLine) {
     for (size_t i = 0; i < vector.size(); ++i) {
@@ -259,18 +262,28 @@ vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int
 double NeuralNetwork::Accuracy(const vector<vector<double>>& data) {
     int numCorrect = 0;
     int numWrong = 0;
+
+    vector<vector<int>> all_results;
+
     for (const auto& row : data) {
         vector<double> xValues(row.begin(), row.begin() + numInput);
         int actual = max_element(row.begin() + numInput, row.end()) - (row.begin() + numInput);
         vector<double> yValues = ComputeOutputs(xValues);
         int predicted = max_element(yValues.begin(), yValues.end()) - yValues.begin();
         cout << (actual == predicted ? "  \t" : " X\t") << actual << " vs " << predicted << endl;
+
+        vector<int> current_results;
+        current_results.push_back(actual);
+        current_results.push_back(predicted);
+        all_results.push_back(current_results);
+
         if (predicted == actual) {
             ++numCorrect;
         } else {
             ++numWrong;
         }
     }
+    CSVWriter::writeCSV(dataset_name + "-results.csv", all_results, "Actual,Predicted");
     return static_cast<double>(numCorrect) / (numCorrect + numWrong);
 }
 
@@ -294,7 +307,6 @@ int main() {
     cout << "\nSeminar: Implementacija neuronske mreže nad podacima iz IRIS.csv, koristeći PSO.\n";
     cout << "Autori: Joshua Lee Fletcher, Noa Midzic, Marko Novak\n";
 
-    string file_name = "";
     int dataset = 0;
     cout << " << Odaberite koji dataset želite koristiti (1, 2): " << endl;
     cout << "\t1 - IRIS.csv" << endl;
@@ -304,19 +316,21 @@ int main() {
 
     if (!dataset || dataset > 3) return -1;
     switch(dataset) {
-        case 1: file_name = "IRIS.csv"; break;
-        case 2: file_name = "PENGUINS.csv"; break;
-        case 3: file_name = "MINES.csv"; break;
-        default: file_name = "ERROR"; break;
+        case 1: dataset_name = "IRIS"; break;
+        case 2: dataset_name = "PENGUINS"; break;
+        case 3: dataset_name = "MINES"; break;
+        default: dataset_name = "ERROR"; break;
     }
+
+    string file_name = dataset_name + ".csv";
 
     // originalni IRIS dataset je po redu prvih 50 redova Iris-setosa, zatim 50 redova Iris-versicolor, te na kraju 50 redova Iris-virginica
     // to nije pogodno za treniranje jer će neuronska mreža imati više podataka za Iris-setosa nego za Iris-versicolor i Iris-virginica ovisno o količini podataka koje uzmemo
     // stoga je potrebno pomiješati podatke, ili ih rasporediti tako da se svaka klasa naizmjenice pojavljuje
-    IRISReader::shuffleCSV(file_name);
+    CSVReader::shuffleCSV(file_name);
     
-    vector<vector<double>> trainData = IRISReader::readFirstNRows(file_name, IRISReader::numRows(file_name) * .5);
-    vector<vector<double>> testData = IRISReader::readFromRowN(file_name, IRISReader::numRows(file_name) * .5);
+    vector<vector<double>> trainData = CSVReader::readFirstNRows(file_name, CSVReader::numRows(file_name) * .5);
+    vector<vector<double>> testData = CSVReader::readFromRowN(file_name, CSVReader::numRows(file_name) * .5);
 
     try {
 	    NeuralNetwork neuralNetwork(4, 6, 3);
