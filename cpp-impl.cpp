@@ -181,7 +181,7 @@ void NeuralNetwork::Shuffle(vector<int>& sequence, mt19937& rnd) {
 
 vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError) {
     mt19937 mt(time(nullptr));
-    uniform_real_distribution<double> distPosition(-10.0, 10.0);
+    uniform_real_distribution<double> distPosition(-1.0, 106.0);
     uniform_real_distribution<double> distVelocity(-1.0, 1.0);
     uniform_real_distribution<double> distProb(0.0, 1.0);
 
@@ -299,12 +299,14 @@ int main() {
     cout << " << Odaberite koji dataset želite koristiti (1, 2): " << endl;
     cout << "\t1 - IRIS.csv" << endl;
     cout << "\t2 - PENGUINS.csv" << endl;
+    cout << "\t3 - MINES.csv" << endl;
     cout << endl << " >> "; cin >> dataset; cout << endl;
 
-    if (!dataset || dataset > 2) return -1;
+    if (!dataset || dataset > 3) return -1;
     switch(dataset) {
         case 1: file_name = "IRIS.csv"; break;
         case 2: file_name = "PENGUINS.csv"; break;
+        case 3: file_name = "MINES.csv"; break;
         default: file_name = "ERROR"; break;
     }
 
