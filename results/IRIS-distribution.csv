@@ -1,0 +1,5 @@
+TestRun,NumCorrect,NumWrong,Train(0)OrTest(1)
+1,53,11,0
+1,49,17,1
+2,44,20,0
+2,33,33,1

@@ -10,10 +10,13 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <map>
 
 using namespace std;
 
 string dataset_name = "";
+double rangeMin, rangeMax;
+map<string, int> testRun;
 
 void ShowVector(const vector<double>& vector, int valsPerRow, int decimals, bool newLine) {
     for (size_t i = 0; i < vector.size(); ++i) {
@@ -42,7 +45,7 @@ public:
     vector<double> GetWeights() const;
     vector<double> ComputeOutputs(const vector<double>& xValues);
     vector<double> Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError);
-    double Accuracy(const vector<vector<double>>& data);
+    double Accuracy(const vector<vector<double>>& data, int dataType);
 
 private:
     int numInput;
@@ -184,7 +187,7 @@ void NeuralNetwork::Shuffle(vector<int>& sequence, mt19937& rnd) {
 
 vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError) {
     mt19937 mt(time(nullptr));
-    uniform_real_distribution<double> distPosition(-5.0, 5.0);
+    uniform_real_distribution<double> distPosition(rangeMin, rangeMax);
     uniform_real_distribution<double> distVelocity(-1.0, 1.0);
     uniform_real_distribution<double> distProb(0.0, 1.0);
 
@@ -259,7 +262,7 @@ vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int
     return bestGlobalPosition;
 }
 
-double NeuralNetwork::Accuracy(const vector<vector<double>>& data) {
+double NeuralNetwork::Accuracy(const vector<vector<double>>& data, int dataType) {
     int numCorrect = 0;
     int numWrong = 0;
 
@@ -273,8 +276,10 @@ double NeuralNetwork::Accuracy(const vector<vector<double>>& data) {
         cout << (actual == predicted ? "  \t" : " X\t") << actual << " vs " << predicted << endl;
 
         vector<int> current_results;
+        current_results.push_back(testRun[dataset_name]);
         current_results.push_back(actual);
         current_results.push_back(predicted);
+        current_results.push_back(dataType);
         all_results.push_back(current_results);
 
         if (predicted == actual) {
@@ -283,16 +288,18 @@ double NeuralNetwork::Accuracy(const vector<vector<double>>& data) {
             ++numWrong;
         }
     }
-    CSVWriter::writeCSV(dataset_name + "-results.csv", all_results, "Actual,Predicted");
+    CSVWriter::writeCSV(dataset_name + "-outputs.csv", all_results, "TestRun,Actual,Predicted,Train(0)OrTest(1)");
 
     vector<int> numCorrectWrong;
+    numCorrectWrong.push_back(testRun[dataset_name]);
     numCorrectWrong.push_back(numCorrect);
     numCorrectWrong.push_back(numWrong);
+    numCorrectWrong.push_back(dataType);
     vector<vector<int>> numCorrectWrongData;
     numCorrectWrongData.push_back(numCorrectWrong);
-    
-    CSVWriter::writeCSV(dataset_name + "-results.csv", numCorrectWrongData, "\nNumCorrect,NumWrong");
-    
+
+    CSVWriter::writeCSV(dataset_name + "-distribution.csv", numCorrectWrongData, "TestRun,NumCorrect,NumWrong,Train(0)OrTest(1)");
+        
     return static_cast<double>(numCorrect) / (numCorrect + numWrong);
 }
 
@@ -311,58 +318,107 @@ public:
 Particle::Particle(const vector<double>& position, double error, const vector<double>& velocity, const vector<double>& bestPosition, double bestError)
     : position(position), error(error), velocity(velocity), bestPosition(bestPosition), bestError(bestError) {}
 
-int main() {
 
-    cout << "\nSeminar: Implementacija neuronske mreže nad podacima iz IRIS.csv, koristeći PSO.\n";
-    cout << "Autori: Joshua Lee Fletcher, Noa Midzic, Marko Novak\n";
-
-    int dataset = 0;
-    cout << " << Odaberite koji dataset želite koristiti (1, 2): " << endl;
-    cout << "\t1 - IRIS.csv" << endl;
-    cout << "\t2 - PENGUINS.csv" << endl;
-    cout << "\t3 - MINES.csv" << endl;
-    cout << endl << " >> "; cin >> dataset; cout << endl;
-
-    if (!dataset || dataset > 3) return -1;
+void runDataset(int dataset) {
     switch(dataset) {
-        case 1: dataset_name = "IRIS"; break;
-        case 2: dataset_name = "PENGUINS"; break;
-        case 3: dataset_name = "MINES"; break;
-        default: dataset_name = "ERROR"; break;
+        case 1: 
+            dataset_name = "IRIS"; 
+            rangeMin = -1.0;
+            rangeMax = 1.0;
+            break;
+        case 2: 
+            dataset_name = "PENGUINS"; 
+            rangeMin = -106.0;
+            rangeMax = 106.0;
+            break;
+        case 3: 
+            dataset_name = "MINES"; 
+            rangeMin = -5.0;
+            rangeMax = 5.0;
+            break;
+        default: 
+            dataset_name = "ERROR"; 
+            break;
     }
 
     string file_name = dataset_name + ".csv";
+    testRun.insert({ dataset_name, 1 }); 
 
     // originalni IRIS dataset je po redu prvih 50 redova Iris-setosa, zatim 50 redova Iris-versicolor, te na kraju 50 redova Iris-virginica
     // to nije pogodno za treniranje jer će neuronska mreža imati više podataka za Iris-setosa nego za Iris-versicolor i Iris-virginica ovisno o količini podataka koje uzmemo
     // stoga je potrebno pomiješati podatke, ili ih rasporediti tako da se svaka klasa naizmjenice pojavljuje
     CSVReader::shuffleCSV(file_name);
-    
+        
     vector<vector<double>> trainData = CSVReader::readFirstNRows(file_name, CSVReader::numRows(file_name) * .5);
     vector<vector<double>> testData = CSVReader::readFromRowN(file_name, CSVReader::numRows(file_name) * .5);
 
     try {
-	    NeuralNetwork neuralNetwork(4, 6, 3);
+        NeuralNetwork neuralNetwork(4, 6, 3);
         cout << "Training the neural network..." << endl << endl;
-	    vector<double> best = neuralNetwork.Train(trainData, 6, 1200, 0.05);
-	
-	    ShowVector(best, 10, 3, true);
-	
+        vector<double> best = neuralNetwork.Train(trainData, 6, 1200, 0.05);
+    
+        ShowVector(best, 10, 3, true);
+    
         cout << endl << "Training finished" << endl << endl;
-	    neuralNetwork.SetWeights(best);
+        neuralNetwork.SetWeights(best);
 
         cout << "Testing training accuracy..." << endl << endl;
-	    double trainAcc = neuralNetwork.Accuracy(trainData);
-	
+        double trainAcc = neuralNetwork.Accuracy(trainData, 0);
+    
         cout << endl << "Testing test accuracy..." << endl << endl;
-	    double testAcc = neuralNetwork.Accuracy(testData);
+        double testAcc = neuralNetwork.Accuracy(testData, 1);
         cout << endl;
-	
+    
         cout << "Training accuracy = " << trainAcc << endl;
         cout << "Test accuracy = " << testAcc << endl;
+
+        testRun[dataset_name]++;
+
     } catch (const exception& ex) {
         cout << ex.what() << endl;
     }
+}
+
+
+int main() {
+    cout << "\nSeminar: Implementacija neuronske mreze nad podacima izabranog dataseta, koristeci PSO.\n";
+    cout << "Autori: Joshua Lee Fletcher, Noa Midzic, Marko Novak\n";
+
+    int dataset = 0;
+
+    while (true) {
+        cout << "Odaberite koji dataset želite koristiti (1, 2, 3) ili 0 za izlaz, ili 4 za ponovljene testove: " << endl;
+        cout << "\t0 - Izlaz" << endl;
+        cout << "\t1 - IRIS.csv" << endl;
+        cout << "\t2 - PENGUINS.csv" << endl;
+        cout << "\t3 - MINES.csv" << endl;
+        cout << "\t4 - Ponovljeni testovi" << endl;
+        cout << endl << " >> "; cin >> dataset; cout << endl;
+
+        if (dataset == 0) break;
+        if (!dataset || dataset > 4) {
+            cout << "Nevažeći unos, pokušajte ponovo." << endl;
+            continue;
+        }
+
+        if (dataset == 4) {
+            int numTestRuns = 0;
+            cout << "Unesite broj ponovljenih testova: ";
+            cin >> numTestRuns;
+            cout << endl;
+
+            for (int i = 0; i < numTestRuns; ++i) {
+                for (int ds = 1; ds <= 3; ++ds) {
+                    runDataset(ds);
+                }
+            }
+        } else {
+            runDataset(dataset);
+        }
+    }
 
     return 0;
+
 }
+
+

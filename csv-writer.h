@@ -16,10 +16,22 @@ public:
     static void writeCSV(const std::string& file_name, std::vector<vector<int>> data, string header) {
         std::string filename = PATH + file_name;
         std::ofstream file;
+
+        bool writeHeader = false;
+
+        std::ifstream infile(filename);
+        if (!infile.good() || infile.peek() == std::ifstream::traits_type::eof()) {
+            writeHeader = true;
+        }
+        infile.close();
+
         file.open (filename, ios_base::app);
         
         if (file.is_open()) {
-            file << header << endl;
+            if (writeHeader) {
+                file << header << endl;
+            }
+            
             for (const auto& row : data) {
                 std::stringstream row_stream;
                 bool first_value = true;
