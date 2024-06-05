@@ -16,7 +16,7 @@ public:
     static void writeCSV(const std::string& file_name, std::vector<vector<int>> data, string header) {
         std::string filename = PATH + file_name;
         std::ofstream file;
-        file.open (filename);
+        file.open (filename, ios_base::app);
         
         if (file.is_open()) {
             file << header << endl;
@@ -36,6 +36,8 @@ public:
             file.close();
             } else {
             std::cerr << "Error opening file: " << filename << std::endl;
-            }
         }
+    }
+
+    
 };

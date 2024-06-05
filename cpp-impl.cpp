@@ -284,6 +284,15 @@ double NeuralNetwork::Accuracy(const vector<vector<double>>& data) {
         }
     }
     CSVWriter::writeCSV(dataset_name + "-results.csv", all_results, "Actual,Predicted");
+
+    vector<int> numCorrectWrong;
+    numCorrectWrong.push_back(numCorrect);
+    numCorrectWrong.push_back(numWrong);
+    vector<vector<int>> numCorrectWrongData;
+    numCorrectWrongData.push_back(numCorrectWrong);
+    
+    CSVWriter::writeCSV(dataset_name + "-results.csv", numCorrectWrongData, "\nNumCorrect,NumWrong");
+    
     return static_cast<double>(numCorrect) / (numCorrect + numWrong);
 }
 
