@@ -151,7 +151,7 @@ vector<double> NeuralNetwork::ComputeOutputs(const vector<double>& xValues) {
     for (int i = 0; i < numInput; ++i)
         inputs[i] = xValues[i];
 
-    // Input to first hidden layer
+    // input za prvi skriveni sloj
     for (int j = 0; j < numHidden; ++j)
         for (int i = 0; i < numInput; ++i)
             hSums[j] += inputs[i] * ihWeights[i][j];
@@ -162,7 +162,7 @@ vector<double> NeuralNetwork::ComputeOutputs(const vector<double>& xValues) {
     for (int i = 0; i < numHidden; ++i)
         hOutputs[0][i] = HyperTanFunction(hSums[i]);
 
-    // Hidden layer to hidden layer
+    // prijenos tezina sa skrivenog sloja na skriveni sloj
     for (unsigned int l = 1; l < numHiddenLayers; ++l) {
         fill(hSums.begin(), hSums.end(), 0.0);
         for (int j = 0; j < numHidden; ++j)
@@ -176,7 +176,7 @@ vector<double> NeuralNetwork::ComputeOutputs(const vector<double>& xValues) {
             hOutputs[l][i] = HyperTanFunction(hSums[i]);
     }
 
-    // Hidden to output layer
+    // prijenos tezina sa skrivenog sloja na izlazni sloj
     for (int j = 0; j < numOutput; ++j)
         for (int i = 0; i < numHidden; ++i)
             oSums[j] += hOutputs[numHiddenLayers-1][i] * hoWeights[i][j];
