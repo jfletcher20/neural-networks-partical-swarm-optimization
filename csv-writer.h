@@ -20,36 +20,25 @@ public:
         bool writeHeader = false;
 
         std::ifstream infile(filename);
-        if (!infile.good() || infile.peek() == std::ifstream::traits_type::eof()) {
-            writeHeader = true;
-        }
+        if (!infile.good() || infile.peek() == std::ifstream::traits_type::eof()) writeHeader = true;
         infile.close();
 
-        file.open (filename, ios_base::app);
+        file.open(filename, ios_base::app);
         
         if (file.is_open()) {
-            if (writeHeader) {
-                file << header << endl;
-            }
-            
+            if (writeHeader) file << header << endl;
             for (const auto& row : data) {
                 std::stringstream row_stream;
                 bool first_value = true;
                 for (const auto& value : row) {
-                    if (!first_value) {
-                        row_stream << ",";
-                    }
+                    if (!first_value) row_stream << ",";
                     row_stream << value;
                     first_value = false;
                 }
-
                 file << row_stream.str() << std::endl;
             }
             file.close();
-            } else {
-            std::cerr << "Error opening file: " << filename << std::endl;
-        }
+        } else std::cerr << "Error opening file: " << filename << std::endl;
     }
-
     
 };
