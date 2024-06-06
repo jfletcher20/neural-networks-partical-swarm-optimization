@@ -32,9 +32,9 @@ private:
     double rangeMin, rangeMax;
     int numInput, numHidden, numOutput;
     unsigned int numHiddenLayers;
-    vector<vector<double>> hBiases, ihWeights, hoWeights;
+    vector<vector<double>> hBiases, ihWeights, hoWeights, hOutputs;
     vector<vector<vector<double>>> hhWeights;
-    vector<double> inputs, outputs, oBiases, hOutputs;
+    vector<double> inputs, outputs, oBiases;
 
     vector<vector<double>> MakeMatrix(int rows, int cols);
     double HyperTanFunction(double x);
@@ -45,16 +45,15 @@ private:
 
 NeuralNetwork::NeuralNetwork(int numInput, int numHidden, unsigned int numHiddenLayers, int numOutput, string dataset_name, double rangeMin, double rangeMax)
     : numInput(numInput), numHidden(numHidden), numHiddenLayers(numHiddenLayers), numOutput(numOutput),
-      inputs(numInput), hOutputs(numHidden),
+      inputs(numInput), hOutputs(numHiddenLayers, vector<double>(numHidden)),
       oBiases(numOutput), outputs(numOutput), dataset_name(dataset_name), rangeMin(rangeMin), rangeMax(rangeMax) {
 
-    numWeights = (numInput * numHidden) + (numHidden * numOutput);
-    numWeights += numHiddenLayers * (numHidden * numHidden) + numHiddenLayers * numHidden + numOutput;
+    numWeights = (numInput * numHidden) + (numHiddenLayers - 1) * (numHidden * numHidden) + (numHidden * numOutput);
+    numWeights += numHiddenLayers * numHidden + numOutput;
 
     ihWeights = MakeMatrix(numInput, numHidden);
     hBiases = MakeMatrix(numHiddenLayers, numHidden);
-
-    for(int i = 0; i < numHiddenLayers; i++)
+    for (unsigned int i = 0; i < numHiddenLayers - 1; ++i)
         hhWeights.push_back(MakeMatrix(numHidden, numHidden));
 
     hoWeights = MakeMatrix(numHidden, numOutput);
@@ -73,14 +72,20 @@ void NeuralNetwork::SetWeights(const vector<double>& weights) {
     for (int i = 0; i < numInput; ++i)
         for (int j = 0; j < numHidden; ++j)
             ihWeights[i][j] = weights[k++];
-    for (int i = 0; i < numHiddenLayers; ++i)
-        for (int j = 0; j < numHidden; ++j) {
-            hBiases[i][j] = weights[k++];
-            for (int lj = 0; lj < numHidden; ++lj) hhWeights[i][j][lj] = weights[k++];
-        }
+
+    for (unsigned int l = 0; l < numHiddenLayers - 1; ++l)
+        for (int i = 0; i < numHidden; ++i)
+            for (int j = 0; j < numHidden; ++j)
+                hhWeights[l][i][j] = weights[k++];
+
+    for (unsigned int l = 0; l < numHiddenLayers; ++l)
+        for (int i = 0; i < numHidden; ++i)
+            hBiases[l][i] = weights[k++];
+
     for (int i = 0; i < numHidden; ++i)
         for (int j = 0; j < numOutput; ++j)
             hoWeights[i][j] = weights[k++];
+
     for (int i = 0; i < numOutput; ++i)
         oBiases[i] = weights[k++];
 }
@@ -109,28 +114,43 @@ vector<double> NeuralNetwork::ComputeOutputs(const vector<double>& xValues) {
     vector<double> hSums(numHidden, 0.0);
     vector<double> oSums(numOutput, 0.0);
 
-    for (size_t i = 0; i < xValues.size(); ++i)
+    for (int i = 0; i < numInput; ++i)
         inputs[i] = xValues[i];
 
+    // input za prvi skriveni sloj
     for (int j = 0; j < numHidden; ++j)
         for (int i = 0; i < numInput; ++i)
             hSums[j] += inputs[i] * ihWeights[i][j];
 
-    for (int i = 0; i < numHiddenLayers; ++i)
-			for (int j = 0; j < numHidden; ++j)
-				hSums[i] += hBiases[i][j];
+    for (int j = 0; j < numHidden; ++j)
+        hSums[j] += hBiases[0][j];
 
     for (int i = 0; i < numHidden; ++i)
-        hOutputs[i] = HyperTanFunction(hSums[i]);
+        hOutputs[0][i] = HyperTanFunction(hSums[i]);
 
+    // prijenos tezina sa skrivenog sloja na skriveni sloj
+    for (unsigned int l = 1; l < numHiddenLayers; ++l) {
+        fill(hSums.begin(), hSums.end(), 0.0);
+        for (int j = 0; j < numHidden; ++j)
+            for (int i = 0; i < numHidden; ++i)
+                hSums[j] += hOutputs[l-1][i] * hhWeights[l-1][i][j];
+
+        for (int j = 0; j < numHidden; ++j)
+            hSums[j] += hBiases[l][j];
+
+        for (int i = 0; i < numHidden; ++i)
+            hOutputs[l][i] = HyperTanFunction(hSums[i]);
+    }
+
+    // prijenos tezina sa skrivenog sloja na izlazni sloj
     for (int j = 0; j < numOutput; ++j)
         for (int i = 0; i < numHidden; ++i)
-            oSums[j] += hOutputs[i] * hoWeights[i][j];
+            oSums[j] += hOutputs[numHiddenLayers-1][i] * hoWeights[i][j];
 
     for (int i = 0; i < numOutput; ++i)
         oSums[i] += oBiases[i];
 
-		vector<double> softOut = Softmax(oSums);
+    vector<double> softOut = Softmax(oSums);
     copy(softOut.begin(), softOut.end(), outputs.begin());
 
     return outputs;
