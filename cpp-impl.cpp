@@ -51,13 +51,13 @@ public:
 private:
     int numInput;
     int numHidden;
-		unsigned int numHiddenLayers;
+    unsigned int numHiddenLayers;
     int numOutput;
     vector<double> inputs;
     vector<vector<double>> ihWeights;
-    vector< vector<vector<double>> > hhWeights;
+    vector<vector<vector<double>>> hhWeights;
     vector<vector<double>> hBiases;
-    vector<double> hOutputs;
+    vector<vector<double>> hOutputs;
     vector<vector<double>> hoWeights;
     vector<double> oBiases;
     vector<double> outputs;
@@ -69,27 +69,23 @@ private:
     void Shuffle(vector<int>& sequence, mt19937& rnd);
 };
 
-
 NeuralNetwork::NeuralNetwork(int numInput, int numHidden, unsigned int numHiddenLayers, int numOutput)
     : numInput(numInput), numHidden(numHidden), numHiddenLayers(numHiddenLayers), numOutput(numOutput),
-      inputs(numInput), hOutputs(numHidden),
+      inputs(numInput), hOutputs(numHiddenLayers, vector<double>(numHidden)),
       oBiases(numOutput), outputs(numOutput) {
 
-    numWeights = (numInput * numHidden) + (numHidden * numOutput) + numHiddenLayers*(numHidden*numHidden) + numHiddenLayers*numHidden + numOutput;
+    numWeights = (numInput * numHidden) + (numHiddenLayers - 1) * (numHidden * numHidden) + (numHidden * numOutput) +
+                 numHiddenLayers * numHidden + numOutput;
     ihWeights = MakeMatrix(numInput, numHidden);
-
-		hBiases = MakeMatrix(numHiddenLayers, numHidden);
-
-		for(int i=0; i<numHiddenLayers; i++) {
-			hhWeights.push_back(MakeMatrix(numHidden, numHidden));
-		}
-
+    hBiases = MakeMatrix(numHiddenLayers, numHidden);
+    for (unsigned int i = 0; i < numHiddenLayers - 1; ++i) {
+        hhWeights.push_back(MakeMatrix(numHidden, numHidden));
+    }
     hoWeights = MakeMatrix(numHidden, numOutput);
 }
 
 vector<vector<double>> NeuralNetwork::MakeMatrix(int rows, int cols) {
-    vector<vector<double>> result(rows, vector<double>(cols));
-    return result;
+    return vector<vector<double>>(rows, vector<double>(cols));
 }
 
 void NeuralNetwork::SetWeights(const vector<double>& weights) {
@@ -100,16 +96,20 @@ void NeuralNetwork::SetWeights(const vector<double>& weights) {
     for (int i = 0; i < numInput; ++i)
         for (int j = 0; j < numHidden; ++j)
             ihWeights[i][j] = weights[k++];
-    for (int i = 0; i < numHiddenLayers; ++i)
-        for (int j = 0; j < numHidden; ++j) {
-					hBiases[i][j] = weights[k++];
-					for (int lj = 0; lj < numHidden; ++lj) {
-						hhWeights[i][j][lj] = weights[k++];
-					}
-				}
+
+    for (unsigned int l = 0; l < numHiddenLayers - 1; ++l)
+        for (int i = 0; i < numHidden; ++i)
+            for (int j = 0; j < numHidden; ++j)
+                hhWeights[l][i][j] = weights[k++];
+
+    for (unsigned int l = 0; l < numHiddenLayers; ++l)
+        for (int i = 0; i < numHidden; ++i)
+            hBiases[l][i] = weights[k++];
+
     for (int i = 0; i < numHidden; ++i)
         for (int j = 0; j < numOutput; ++j)
             hoWeights[i][j] = weights[k++];
+
     for (int i = 0; i < numOutput; ++i)
         oBiases[i] = weights[k++];
 }
@@ -117,17 +117,27 @@ void NeuralNetwork::SetWeights(const vector<double>& weights) {
 vector<double> NeuralNetwork::GetWeights() const {
     vector<double> result(numWeights);
     int k = 0;
+
     for (int i = 0; i < numInput; ++i)
         for (int j = 0; j < numHidden; ++j)
             result[k++] = ihWeights[i][j];
-    for (int i = 0; i < numHiddenLayers; ++i)
-        for (int j = 0; j < numHidden; ++j)
-        result[k++] = hBiases[i][j];
+
+    for (unsigned int l = 0; l < numHiddenLayers - 1; ++l)
+        for (int i = 0; i < numHidden; ++i)
+            for (int j = 0; j < numHidden; ++j)
+                result[k++] = hhWeights[l][i][j];
+
+    for (unsigned int l = 0; l < numHiddenLayers; ++l)
+        for (int i = 0; i < numHidden; ++i)
+            result[k++] = hBiases[l][i];
+
     for (int i = 0; i < numHidden; ++i)
         for (int j = 0; j < numOutput; ++j)
             result[k++] = hoWeights[i][j];
+
     for (int i = 0; i < numOutput; ++i)
         result[k++] = oBiases[i];
+
     return result;
 }
 
@@ -138,28 +148,43 @@ vector<double> NeuralNetwork::ComputeOutputs(const vector<double>& xValues) {
     vector<double> hSums(numHidden, 0.0);
     vector<double> oSums(numOutput, 0.0);
 
-    for (size_t i = 0; i < xValues.size(); ++i)
+    for (int i = 0; i < numInput; ++i)
         inputs[i] = xValues[i];
 
+    // Input to first hidden layer
     for (int j = 0; j < numHidden; ++j)
         for (int i = 0; i < numInput; ++i)
             hSums[j] += inputs[i] * ihWeights[i][j];
 
-    for (int i = 0; i < numHiddenLayers; ++i)
-			for (int j = 0; j < numHidden; ++j)
-				hSums[i] += hBiases[i][j];
+    for (int j = 0; j < numHidden; ++j)
+        hSums[j] += hBiases[0][j];
 
     for (int i = 0; i < numHidden; ++i)
-        hOutputs[i] = HyperTanFunction(hSums[i]);
+        hOutputs[0][i] = HyperTanFunction(hSums[i]);
 
+    // Hidden layer to hidden layer
+    for (unsigned int l = 1; l < numHiddenLayers; ++l) {
+        fill(hSums.begin(), hSums.end(), 0.0);
+        for (int j = 0; j < numHidden; ++j)
+            for (int i = 0; i < numHidden; ++i)
+                hSums[j] += hOutputs[l-1][i] * hhWeights[l-1][i][j];
+
+        for (int j = 0; j < numHidden; ++j)
+            hSums[j] += hBiases[l][j];
+
+        for (int i = 0; i < numHidden; ++i)
+            hOutputs[l][i] = HyperTanFunction(hSums[i]);
+    }
+
+    // Hidden to output layer
     for (int j = 0; j < numOutput; ++j)
         for (int i = 0; i < numHidden; ++i)
-            oSums[j] += hOutputs[i] * hoWeights[i][j];
+            oSums[j] += hOutputs[numHiddenLayers-1][i] * hoWeights[i][j];
 
     for (int i = 0; i < numOutput; ++i)
         oSums[i] += oBiases[i];
 
-		vector<double> softOut = Softmax(oSums);
+    vector<double> softOut = Softmax(oSums);
     copy(softOut.begin(), softOut.end(), outputs.begin());
 
     return outputs;
