@@ -1,2 +1,8 @@
 .vscode/
 cpp-impl.exe
+results/IRIS-distribution.csv
+results/IRIS-outputs.csv
+results/MINES-distribution.csv
+results/MINES-outputs.csv
+results/PENGUINS-distribution.csv
+results/PENGUINS-outputs.csv
