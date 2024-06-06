@@ -39,23 +39,26 @@ void ShowMatrix(const vector<vector<double>>& matrix, int decimals, bool newLine
 
 class NeuralNetwork {
 public:
-    NeuralNetwork(int numInput, int numHidden, int numOutput);
+    NeuralNetwork(int numInput, int numHidden, unsigned int numHiddenLayers, int numOutput);
 
     void SetWeights(const vector<double>& weights);
     vector<double> GetWeights() const;
     vector<double> ComputeOutputs(const vector<double>& xValues);
     vector<double> Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError);
     double Accuracy(const vector<vector<double>>& data, int dataType);
+    int numWeights;
 
 private:
     int numInput;
     int numHidden;
+		unsigned int numHiddenLayers;
     int numOutput;
     vector<double> inputs;
-    vector<vector<double>> ihWeights; 
-    vector<double> hBiases;
+    vector<vector<double>> ihWeights;
+    vector< vector<vector<double>> > hhWeights;
+    vector<vector<double>> hBiases;
     vector<double> hOutputs;
-    vector<vector<double>> hoWeights; 
+    vector<vector<double>> hoWeights;
     vector<double> oBiases;
     vector<double> outputs;
 
@@ -67,11 +70,20 @@ private:
 };
 
 
-NeuralNetwork::NeuralNetwork(int numInput, int numHidden, int numOutput)
-    : numInput(numInput), numHidden(numHidden), numOutput(numOutput),
-      inputs(numInput), hBiases(numHidden), hOutputs(numHidden),
+NeuralNetwork::NeuralNetwork(int numInput, int numHidden, unsigned int numHiddenLayers, int numOutput)
+    : numInput(numInput), numHidden(numHidden), numHiddenLayers(numHiddenLayers), numOutput(numOutput),
+      inputs(numInput), hOutputs(numHidden),
       oBiases(numOutput), outputs(numOutput) {
+
+    numWeights = (numInput * numHidden) + (numHidden * numOutput) + numHiddenLayers*(numHidden*numHidden) + numHiddenLayers*numHidden + numOutput;
     ihWeights = MakeMatrix(numInput, numHidden);
+
+		hBiases = MakeMatrix(numHiddenLayers, numHidden);
+
+		for(int i=0; i<numHiddenLayers; i++) {
+			hhWeights.push_back(MakeMatrix(numHidden, numHidden));
+		}
+
     hoWeights = MakeMatrix(numHidden, numOutput);
 }
 
@@ -81,7 +93,6 @@ vector<vector<double>> NeuralNetwork::MakeMatrix(int rows, int cols) {
 }
 
 void NeuralNetwork::SetWeights(const vector<double>& weights) {
-    int numWeights = (numInput * numHidden) + (numHidden * numOutput) + numHidden + numOutput;
     if (weights.size() != numWeights)
         throw runtime_error("Bad weights array length");
 
@@ -89,8 +100,13 @@ void NeuralNetwork::SetWeights(const vector<double>& weights) {
     for (int i = 0; i < numInput; ++i)
         for (int j = 0; j < numHidden; ++j)
             ihWeights[i][j] = weights[k++];
-    for (int i = 0; i < numHidden; ++i)
-        hBiases[i] = weights[k++];
+    for (int i = 0; i < numHiddenLayers; ++i)
+        for (int j = 0; j < numHidden; ++j) {
+					hBiases[i][j] = weights[k++];
+					for (int lj = 0; lj < numHidden; ++lj) {
+						hhWeights[i][j][lj] = weights[k++];
+					}
+				}
     for (int i = 0; i < numHidden; ++i)
         for (int j = 0; j < numOutput; ++j)
             hoWeights[i][j] = weights[k++];
@@ -99,14 +115,14 @@ void NeuralNetwork::SetWeights(const vector<double>& weights) {
 }
 
 vector<double> NeuralNetwork::GetWeights() const {
-    int numWeights = (numInput * numHidden) + (numHidden * numOutput) + numHidden + numOutput;
     vector<double> result(numWeights);
     int k = 0;
     for (int i = 0; i < numInput; ++i)
         for (int j = 0; j < numHidden; ++j)
             result[k++] = ihWeights[i][j];
-    for (int i = 0; i < numHidden; ++i)
-        result[k++] = hBiases[i];
+    for (int i = 0; i < numHiddenLayers; ++i)
+        for (int j = 0; j < numHidden; ++j)
+        result[k++] = hBiases[i][j];
     for (int i = 0; i < numHidden; ++i)
         for (int j = 0; j < numOutput; ++j)
             result[k++] = hoWeights[i][j];
@@ -129,8 +145,9 @@ vector<double> NeuralNetwork::ComputeOutputs(const vector<double>& xValues) {
         for (int i = 0; i < numInput; ++i)
             hSums[j] += inputs[i] * ihWeights[i][j];
 
-    for (int i = 0; i < numHidden; ++i)
-        hSums[i] += hBiases[i];
+    for (int i = 0; i < numHiddenLayers; ++i)
+			for (int j = 0; j < numHidden; ++j)
+				hSums[i] += hBiases[i][j];
 
     for (int i = 0; i < numHidden; ++i)
         hOutputs[i] = HyperTanFunction(hSums[i]);
@@ -191,7 +208,6 @@ vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int
     uniform_real_distribution<double> distVelocity(-1.0, 1.0);
     uniform_real_distribution<double> distProb(0.0, 1.0);
 
-    int numWeights = (numInput * numHidden) + (numHidden * numOutput) + numHidden + numOutput;
     vector<double> bestGlobalPosition(numWeights, 0.0);
     double bestGlobalError = numeric_limits<double>::max();
 
@@ -255,7 +271,6 @@ vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int
                 bestGlobalPosition = currP.position;
             }
 
-            
         }
     }
     SetWeights(bestGlobalPosition);
@@ -299,7 +314,7 @@ double NeuralNetwork::Accuracy(const vector<vector<double>>& data, int dataType)
     numCorrectWrongData.push_back(numCorrectWrong);
 
     CSVWriter::writeCSV(dataset_name + "-distribution.csv", numCorrectWrongData, "TestRun,NumCorrect,NumWrong,Train(0)OrTest(1)");
-        
+
     return static_cast<double>(numCorrect) / (numCorrect + numWrong);
 }
 
@@ -321,54 +336,54 @@ Particle::Particle(const vector<double>& position, double error, const vector<do
 
 void runDataset(int dataset) {
     switch(dataset) {
-        case 1: 
-            dataset_name = "IRIS"; 
+        case 1:
+            dataset_name = "IRIS";
             rangeMin = -1.0;
             rangeMax = 1.0;
             break;
-        case 2: 
-            dataset_name = "PENGUINS"; 
+        case 2:
+            dataset_name = "PENGUINS";
             rangeMin = -106.0;
             rangeMax = 106.0;
             break;
-        case 3: 
-            dataset_name = "MINES"; 
+        case 3:
+            dataset_name = "MINES";
             rangeMin = -5.0;
             rangeMax = 5.0;
             break;
-        default: 
-            dataset_name = "ERROR"; 
+        default:
+            dataset_name = "ERROR";
             break;
     }
 
     string file_name = dataset_name + ".csv";
-    testRun.insert({ dataset_name, 1 }); 
+    testRun.insert({ dataset_name, 1 });
 
     // originalni IRIS dataset je po redu prvih 50 redova Iris-setosa, zatim 50 redova Iris-versicolor, te na kraju 50 redova Iris-virginica
     // to nije pogodno za treniranje jer će neuronska mreža imati više podataka za Iris-setosa nego za Iris-versicolor i Iris-virginica ovisno o količini podataka koje uzmemo
     // stoga je potrebno pomiješati podatke, ili ih rasporediti tako da se svaka klasa naizmjenice pojavljuje
     CSVReader::shuffleCSV(file_name);
-        
+
     vector<vector<double>> trainData = CSVReader::readFirstNRows(file_name, CSVReader::numRows(file_name) * .5);
     vector<vector<double>> testData = CSVReader::readFromRowN(file_name, CSVReader::numRows(file_name) * .5);
 
     try {
-        NeuralNetwork neuralNetwork(4, 6, 3);
+        NeuralNetwork neuralNetwork(4, 6, 5, 3);
         cout << "Training the neural network..." << endl << endl;
-        vector<double> best = neuralNetwork.Train(trainData, 6, 1200, 0.05);
-    
+        vector<double> best = neuralNetwork.Train(trainData, 10, 1200, 0.05);
+
         ShowVector(best, 10, 3, true);
-    
+
         cout << endl << "Training finished" << endl << endl;
         neuralNetwork.SetWeights(best);
 
         cout << "Testing training accuracy..." << endl << endl;
         double trainAcc = neuralNetwork.Accuracy(trainData, 0);
-    
+
         cout << endl << "Testing test accuracy..." << endl << endl;
         double testAcc = neuralNetwork.Accuracy(testData, 1);
         cout << endl;
-    
+
         cout << "Training accuracy = " << trainAcc << endl;
         cout << "Test accuracy = " << testAcc << endl;
 
@@ -417,8 +432,5 @@ int main() {
         }
     }
 
-    return 0;
-
+	return 0;
 }
-
-

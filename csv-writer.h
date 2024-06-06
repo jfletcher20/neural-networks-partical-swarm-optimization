@@ -9,12 +9,12 @@
 
 using namespace std;
 
-#define PATH "./results/"
+#define WRITE_PATH "./results/"
 
 class CSVWriter {
 public:
     static void writeCSV(const std::string& file_name, std::vector<vector<int>> data, string header) {
-        std::string filename = PATH + file_name;
+        std::string filename = WRITE_PATH + file_name;
         std::ofstream file;
 
         bool writeHeader = false;

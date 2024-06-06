@@ -7,12 +7,12 @@
 #include <algorithm>
 #include <iostream>
 
-#define PATH "./datasets/"
+#define READ_PATH "./datasets/"
 
 class CSVReader {
 public:
     static void shuffleCSV(const std::string& file_name) {
-        std::string filename = PATH + file_name;
+        std::string filename = READ_PATH + file_name;
         std::ifstream file(filename);
         std::vector<std::string> lines;
         if (file.is_open()) {
@@ -31,7 +31,7 @@ public:
     }
 
     static std::vector<std::vector<double>> readCSV(const std::string& file_name) {
-        std::string filename = PATH + file_name;
+        std::string filename = READ_PATH + file_name;
         std::ifstream file(filename);
         std::vector<std::vector<double>> data;
         if (file.is_open()) {
@@ -67,7 +67,7 @@ public:
     }
 
     static int numRows(const std::string& file_name) {
-        std::string filename = PATH + file_name;
+        std::string filename = READ_PATH + file_name;
         int count = 0;
         std::ifstream file(filename);
         if (file.is_open()) {
@@ -79,7 +79,7 @@ public:
     }
 
     static int numColumns(const std::string& file_name) {
-        std::string filename = PATH + file_name;
+        std::string filename = READ_PATH + file_name;
         int count = 0;
         std::ifstream file(filename);
         if (file.is_open()) {
@@ -94,12 +94,12 @@ public:
     }
 
     static int numClasses(const std::string& file_name) {
-        std::string filename = PATH + file_name;
+        std::string filename = READ_PATH + file_name;
         return 3;
     }
 
     static std::vector<std::vector<double>> readFirstNRows(const std::string& file_name, int n) {
-        std::string filename = PATH + file_name;
+        std::string filename = READ_PATH + file_name;
         std::ifstream file(filename);
         std::vector<std::vector<double>> data;
         if (file.is_open()) {
@@ -137,7 +137,7 @@ public:
     }
 
     static std::vector<std::vector<double>> readFromRowN(const std::string& file_name, int n) {
-        std::string filename = PATH + file_name;
+        std::string filename = READ_PATH + file_name;
         std::ifstream file(filename);
         std::vector<std::vector<double>> data;
         if (file.is_open()) {
