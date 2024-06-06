@@ -16,216 +16,216 @@
 
 using namespace std;
 
-class NeuralNetwork {
+class NeuronskaMrezna {
 public:
-    NeuralNetwork(int numInput, int numHidden, unsigned int numHiddenLayers, int numOutput, string dataset_name, double rangeMin, double rangeMax);
+    NeuronskaMrezna(int brojUlaznih, int brojSkrivenih, unsigned int brojSkrivenihSlojeva, int brojIzlaznih, string dataset_naziv, double rasponMin, double rasponMax);
 
-    void SetWeights(const vector<double>& weights);
-    vector<double> GetWeights() const;
-    vector<double> ComputeOutputs(const vector<double>& xValues);
-    vector<double> Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError);
-    double Accuracy(const vector<vector<double>>& data, int dataType, map<string, int> testRun);
-    int numWeights;
+    void SetTezine(const vector<double>& tezine);
+    vector<double> GetTezine() const;
+    vector<double> IzracunajIzlaze(const vector<double>& xVrijednosti);
+    vector<double> Treniraj(const vector<vector<double>>& podaciZaTreniranje, int brojCestica, int maxEpoha, double zadovoljavajucaGreska);
+    double Tocnost(const vector<vector<double>>& podaci, int vrstaPodataka, map<string, int> testnoPokretanje);
+    int brojTezina;
 
 private:
-    string dataset_name;
-    double rangeMin, rangeMax;
-    int numInput, numHidden, numOutput;
-    unsigned int numHiddenLayers;
-    vector<vector<double>> hBiases, ihWeights, hoWeights, hOutputs;
-    vector<vector<vector<double>>> hhWeights;
-    vector<double> inputs, outputs, oBiases;
+    string dataset_naziv;
+    double rasponMin, rasponMax;
+    int brojUlaznih, brojSkrivenih, brojIzlaznih;
+    unsigned int brojSkrivenihSlojeva;
+    vector<vector<double>> skriveniBiasevi, ulazSkriveneTezine, skriveneIzlazTezine, skrivenoIzlazi;
+    vector<vector<vector<double>>> skriveniTezine;
+    vector<double> ulazi, izlazi, izlazniBiasevi;
 
-    vector<vector<double>> MakeMatrix(int rows, int cols);
-    double HyperTanFunction(double x);
-    vector<double> Softmax(const vector<double>& oSums);
-    double MeanSquaredError(const vector<vector<double>>& trainData, const vector<double>& weights);
-    void Shuffle(vector<int>& sequence, mt19937& rnd);
+    vector<vector<double>> KreirajMatricu(int rows, int stupci);
+    double TanH(double x);
+    vector<double> Softmax(const vector<double>& zbrojIzlazni);
+    double SrednjaKvadratnaPogreska(const vector<vector<double>>& podaciZaTreniranje, const vector<double>& tezine);
+    void Izmijesaj(vector<int>& niz, mt19937& rnd);
 };
 
-NeuralNetwork::NeuralNetwork(int numInput, int numHidden, unsigned int numHiddenLayers, int numOutput, string dataset_name, double rangeMin, double rangeMax)
-    : numInput(numInput), numHidden(numHidden), numHiddenLayers(numHiddenLayers), numOutput(numOutput),
-      inputs(numInput), hOutputs(numHiddenLayers, vector<double>(numHidden)),
-      oBiases(numOutput), outputs(numOutput), dataset_name(dataset_name), rangeMin(rangeMin), rangeMax(rangeMax) {
+NeuronskaMrezna::NeuronskaMrezna(int brojUlaznih, int brojSkrivenih, unsigned int brojSkrivenihSlojeva, int brojIzlaznih, string dataset_naziv, double rasponMin, double rasponMax)
+    : brojUlaznih(brojUlaznih), brojSkrivenih(brojSkrivenih), brojSkrivenihSlojeva(brojSkrivenihSlojeva), brojIzlaznih(brojIzlaznih),
+      ulazi(brojUlaznih), skrivenoIzlazi(brojSkrivenihSlojeva, vector<double>(brojSkrivenih)),
+      izlazniBiasevi(brojIzlaznih), izlazi(brojIzlaznih), dataset_naziv(dataset_naziv), rasponMin(rasponMin), rasponMax(rasponMax) {
 
-    numWeights = (numInput * numHidden) + (numHiddenLayers - 1) * (numHidden * numHidden) + (numHidden * numOutput);
-    numWeights += numHiddenLayers * numHidden + numOutput;
+    brojTezina = (brojUlaznih * brojSkrivenih) + (brojSkrivenihSlojeva - 1) * (brojSkrivenih * brojSkrivenih) + (brojSkrivenih * brojIzlaznih);
+    brojTezina += brojSkrivenihSlojeva * brojSkrivenih + brojIzlaznih;
 
-    ihWeights = MakeMatrix(numInput, numHidden);
-    hBiases = MakeMatrix(numHiddenLayers, numHidden);
-    for (unsigned int i = 0; i < numHiddenLayers - 1; ++i)
-        hhWeights.push_back(MakeMatrix(numHidden, numHidden));
+    ulazSkriveneTezine = KreirajMatricu(brojUlaznih, brojSkrivenih);
+    skriveniBiasevi = KreirajMatricu(brojSkrivenihSlojeva, brojSkrivenih);
+    for (unsigned int i = 0; i < brojSkrivenihSlojeva - 1; ++i)
+        skriveniTezine.push_back(KreirajMatricu(brojSkrivenih, brojSkrivenih));
 
-    hoWeights = MakeMatrix(numHidden, numOutput);
+    skriveneIzlazTezine = KreirajMatricu(brojSkrivenih, brojIzlaznih);
 }
 
-vector<vector<double>> NeuralNetwork::MakeMatrix(int rows, int cols) {
-    vector<vector<double>> result(rows, vector<double>(cols));
-    return result;
+vector<vector<double>> NeuronskaMrezna::KreirajMatricu(int redovi, int stupci) {
+    vector<vector<double>> rezultat(redovi, vector<double>(stupci));
+    return rezultat;
 }
 
-void NeuralNetwork::SetWeights(const vector<double>& weights) {
-    if (weights.size() != numWeights)
-        throw runtime_error("Bad weights array length");
+void NeuronskaMrezna::SetTezine(const vector<double>& tezine) {
+    if (tezine.size() != brojTezina)
+        throw runtime_error("Neispravna duljina polja tezina");
 
     int k = 0;
-    for (int i = 0; i < numInput; ++i)
-        for (int j = 0; j < numHidden; ++j)
-            ihWeights[i][j] = weights[k++];
+    for (int i = 0; i < brojUlaznih; ++i)
+        for (int j = 0; j < brojSkrivenih; ++j)
+            ulazSkriveneTezine[i][j] = tezine[k++];
 
-    for (unsigned int l = 0; l < numHiddenLayers - 1; ++l)
-        for (int i = 0; i < numHidden; ++i)
-            for (int j = 0; j < numHidden; ++j)
-                hhWeights[l][i][j] = weights[k++];
+    for (unsigned int l = 0; l < brojSkrivenihSlojeva - 1; ++l)
+        for (int i = 0; i < brojSkrivenih; ++i)
+            for (int j = 0; j < brojSkrivenih; ++j)
+                skriveniTezine[l][i][j] = tezine[k++];
 
-    for (unsigned int l = 0; l < numHiddenLayers; ++l)
-        for (int i = 0; i < numHidden; ++i)
-            hBiases[l][i] = weights[k++];
+    for (unsigned int l = 0; l < brojSkrivenihSlojeva; ++l)
+        for (int i = 0; i < brojSkrivenih; ++i)
+            skriveniBiasevi[l][i] = tezine[k++];
 
-    for (int i = 0; i < numHidden; ++i)
-        for (int j = 0; j < numOutput; ++j)
-            hoWeights[i][j] = weights[k++];
+    for (int i = 0; i < brojSkrivenih; ++i)
+        for (int j = 0; j < brojIzlaznih; ++j)
+            skriveneIzlazTezine[i][j] = tezine[k++];
 
-    for (int i = 0; i < numOutput; ++i)
-        oBiases[i] = weights[k++];
+    for (int i = 0; i < brojIzlaznih; ++i)
+        izlazniBiasevi[i] = tezine[k++];
 }
 
-vector<double> NeuralNetwork::GetWeights() const {
-    vector<double> result(numWeights);
+vector<double> NeuronskaMrezna::GetTezine() const {
+    vector<double> rezultat(brojTezina);
     int k = 0;
-    for (int i = 0; i < numInput; ++i)
-        for (int j = 0; j < numHidden; ++j)
-            result[k++] = ihWeights[i][j];
-    for (int i = 0; i < numHiddenLayers; ++i)
-        for (int j = 0; j < numHidden; ++j)
-        result[k++] = hBiases[i][j];
-    for (int i = 0; i < numHidden; ++i)
-        for (int j = 0; j < numOutput; ++j)
-            result[k++] = hoWeights[i][j];
-    for (int i = 0; i < numOutput; ++i)
-        result[k++] = oBiases[i];
-    return result;
+    for (int i = 0; i < brojUlaznih; ++i)
+        for (int j = 0; j < brojSkrivenih; ++j)
+            rezultat[k++] = ulazSkriveneTezine[i][j];
+    for (int i = 0; i < brojSkrivenihSlojeva; ++i)
+        for (int j = 0; j < brojSkrivenih; ++j)
+        rezultat[k++] = skriveniBiasevi[i][j];
+    for (int i = 0; i < brojSkrivenih; ++i)
+        for (int j = 0; j < brojIzlaznih; ++j)
+            rezultat[k++] = skriveneIzlazTezine[i][j];
+    for (int i = 0; i < brojIzlaznih; ++i)
+        rezultat[k++] = izlazniBiasevi[i];
+    return rezultat;
 }
 
-vector<double> NeuralNetwork::ComputeOutputs(const vector<double>& xValues) {
-    if (xValues.size() != numInput)
-        throw runtime_error("Bad xValues array length");
+vector<double> NeuronskaMrezna::IzracunajIzlaze(const vector<double>& xVrijednosti) {
+    if (xVrijednosti.size() != brojUlaznih)
+        throw runtime_error("Neispravna duljina polja xVrijednosti");
 
-    vector<double> hSums(numHidden, 0.0);
-    vector<double> oSums(numOutput, 0.0);
+    vector<double> zbrojSkriveni(brojSkrivenih, 0.0);
+    vector<double> zbrojIzlazni(brojIzlaznih, 0.0);
 
-    for (int i = 0; i < numInput; ++i)
-        inputs[i] = xValues[i];
+    for (int i = 0; i < brojUlaznih; ++i)
+        ulazi[i] = xVrijednosti[i];
 
     // input za prvi skriveni sloj
-    for (int j = 0; j < numHidden; ++j)
-        for (int i = 0; i < numInput; ++i)
-            hSums[j] += inputs[i] * ihWeights[i][j];
+    for (int j = 0; j < brojSkrivenih; ++j)
+        for (int i = 0; i < brojUlaznih; ++i)
+            zbrojSkriveni[j] += ulazi[i] * ulazSkriveneTezine[i][j];
 
-    for (int j = 0; j < numHidden; ++j)
-        hSums[j] += hBiases[0][j];
+    for (int j = 0; j < brojSkrivenih; ++j)
+        zbrojSkriveni[j] += skriveniBiasevi[0][j];
 
-    for (int i = 0; i < numHidden; ++i)
-        hOutputs[0][i] = HyperTanFunction(hSums[i]);
+    for (int i = 0; i < brojSkrivenih; ++i)
+        skrivenoIzlazi[0][i] = TanH(zbrojSkriveni[i]);
 
     // prijenos tezina sa skrivenog sloja na skriveni sloj
-    for (unsigned int l = 1; l < numHiddenLayers; ++l) {
-        fill(hSums.begin(), hSums.end(), 0.0);
-        for (int j = 0; j < numHidden; ++j)
-            for (int i = 0; i < numHidden; ++i)
-                hSums[j] += hOutputs[l-1][i] * hhWeights[l-1][i][j];
+    for (unsigned int l = 1; l < brojSkrivenihSlojeva; ++l) {
+        fill(zbrojSkriveni.begin(), zbrojSkriveni.end(), 0.0);
+        for (int j = 0; j < brojSkrivenih; ++j)
+            for (int i = 0; i < brojSkrivenih; ++i)
+                zbrojSkriveni[j] += skrivenoIzlazi[l-1][i] * skriveniTezine[l-1][i][j];
 
-        for (int j = 0; j < numHidden; ++j)
-            hSums[j] += hBiases[l][j];
+        for (int j = 0; j < brojSkrivenih; ++j)
+            zbrojSkriveni[j] += skriveniBiasevi[l][j];
 
-        for (int i = 0; i < numHidden; ++i)
-            hOutputs[l][i] = HyperTanFunction(hSums[i]);
+        for (int i = 0; i < brojSkrivenih; ++i)
+            skrivenoIzlazi[l][i] = TanH(zbrojSkriveni[i]);
     }
 
     // prijenos tezina sa skrivenog sloja na izlazni sloj
-    for (int j = 0; j < numOutput; ++j)
-        for (int i = 0; i < numHidden; ++i)
-            oSums[j] += hOutputs[numHiddenLayers-1][i] * hoWeights[i][j];
+    for (int j = 0; j < brojIzlaznih; ++j)
+        for (int i = 0; i < brojSkrivenih; ++i)
+            zbrojIzlazni[j] += skrivenoIzlazi[brojSkrivenihSlojeva-1][i] * skriveneIzlazTezine[i][j];
 
-    for (int i = 0; i < numOutput; ++i)
-        oSums[i] += oBiases[i];
+    for (int i = 0; i < brojIzlaznih; ++i)
+        zbrojIzlazni[i] += izlazniBiasevi[i];
 
-    vector<double> softOut = Softmax(oSums);
-    copy(softOut.begin(), softOut.end(), outputs.begin());
+    vector<double> softRez = Softmax(zbrojIzlazni);
+    copy(softRez.begin(), softRez.end(), izlazi.begin());
 
-    return outputs;
+    return izlazi;
 }
 
-double NeuralNetwork::HyperTanFunction(double x) {
+double NeuronskaMrezna::TanH(double x) {
     if (x < -20.0) return -1.0;
     else if (x > 20.0) return 1.0;
     else return tanh(x);
 }
 
-vector<double> NeuralNetwork::Softmax(const vector<double>& oSums) {
-    double max = *max_element(oSums.begin(), oSums.end());
-    double scale = 0.0;
-    for (double val : oSums)
-        scale += exp(val - max);
+vector<double> NeuronskaMrezna::Softmax(const vector<double>& zbrojIzlazni) {
+    double max = *max_element(zbrojIzlazni.begin(), zbrojIzlazni.end());
+    double skaliranje = 0.0;
+    for (double zI : zbrojIzlazni)
+        skaliranje += exp(zI - max);
 
-    vector<double> result(oSums.size());
-    for (size_t i = 0; i < oSums.size(); ++i)
-        result[i] = exp(oSums[i] - max) / scale;
+    vector<double> rezultat(zbrojIzlazni.size());
+    for (size_t i = 0; i < zbrojIzlazni.size(); ++i)
+        rezultat[i] = exp(zbrojIzlazni[i] - max) / skaliranje;
 
-    return result;
+    return rezultat;
 }
 
-double NeuralNetwork::MeanSquaredError(const vector<vector<double>>& trainData, const vector<double>& weights) {
-    SetWeights(weights);
-    double sumSquaredError = 0.0;
-    for (const auto& row : trainData) {
-        vector<double> xValues(row.begin(), row.begin() + numInput);
-        vector<double> tValues(row.begin() + numInput, row.end());
-        vector<double> yValues = ComputeOutputs(xValues);
-        for (int j = 0; j < tValues.size(); ++j) {
-            sumSquaredError += pow(yValues[j] - tValues[j], 2);
+double NeuronskaMrezna::SrednjaKvadratnaPogreska(const vector<vector<double>>& podaciZaTreniranje, const vector<double>& tezine) {
+    SetTezine(tezine);
+    double zbrojKvadrataGreski = 0.0;
+    for (const auto& row : podaciZaTreniranje) {
+        vector<double> xVrijednosti(row.begin(), row.begin() + brojUlaznih);
+        vector<double> tVrijednosti(row.begin() + brojUlaznih, row.end());
+        vector<double> yVrijednosti = IzracunajIzlaze(xVrijednosti);
+        for (int j = 0; j < tVrijednosti.size(); ++j) {
+            zbrojKvadrataGreski += pow(yVrijednosti[j] - tVrijednosti[j], 2);
         }
     }
-    return sumSquaredError / trainData.size();
+    return zbrojKvadrataGreski / podaciZaTreniranje.size();
 }
 
-void NeuralNetwork::Shuffle(vector<int>& sequence, mt19937& rnd) {
-    shuffle(sequence.begin(), sequence.end(), rnd);
+void NeuronskaMrezna::Izmijesaj(vector<int>& niz, mt19937& rnd) {
+    shuffle(niz.begin(), niz.end(), rnd);
 }
 
-vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError) {
+vector<double> NeuronskaMrezna::Treniraj(const vector<vector<double>>& podaciZaTreniranje, int brojCestica, int maxEpoha, double zadovoljavajucaGreska) {
     mt19937 mt(time(nullptr));
-    uniform_real_distribution<double> distPosition(rangeMin, rangeMax);
-    uniform_real_distribution<double> distVelocity(-1.0, 1.0);
-    uniform_real_distribution<double> distProb(0.0, 1.0);
+    uniform_real_distribution<double> distPozicija(rasponMin, rasponMax);
+    uniform_real_distribution<double> distBrzina(-1.0, 1.0);
+    uniform_real_distribution<double> distVjerojatnost(0.0, 1.0);
 
-    vector<double> bestGlobalPosition(numWeights, 0.0);
-    double bestGlobalError = numeric_limits<double>::max();
+    vector<double> najboljaGlobalnaPozicija(brojTezina, 0.0);
+    double najboljaGlobalnaGreska = numeric_limits<double>::max();
 
-    struct Particle {
-        vector<double> position;
-        double error;
-        vector<double> velocity;
-        vector<double> bestPosition;
-        double bestError;
+    struct Cestica {
+        vector<double> pozicija;
+        double greska;
+        vector<double> brzina;
+        vector<double> najboljaPozicija;
+        double najboljaGreska;
     };
 
-    vector<Particle> swarm(numParticles);
-    for (auto& particle : swarm) {
+    vector<Cestica> roj(brojCestica);
+    for (auto& cestica : roj) {
 
-        particle.position.resize(numWeights);
-        for (double& w : particle.position) w = distPosition(mt);
+        cestica.pozicija.resize(brojTezina);
+        for (double& w : cestica.pozicija) w = distPozicija(mt);
 
-        particle.velocity.resize(numWeights);
-        for (double& v : particle.velocity) v = distVelocity(mt);
+        cestica.brzina.resize(brojTezina);
+        for (double& v : cestica.brzina) v = distBrzina(mt);
 
-        particle.bestPosition = particle.position;
-        particle.error = MeanSquaredError(trainData, particle.position);
-        particle.bestError = particle.error;
+        cestica.najboljaPozicija = cestica.pozicija;
+        cestica.greska = SrednjaKvadratnaPogreska(podaciZaTreniranje, cestica.pozicija);
+        cestica.najboljaGreska = cestica.greska;
 
-        if (particle.error < bestGlobalError) {
-            bestGlobalError = particle.error;
-            bestGlobalPosition = particle.position;
+        if (cestica.greska < najboljaGlobalnaGreska) {
+            najboljaGlobalnaGreska = cestica.greska;
+            najboljaGlobalnaPozicija = cestica.pozicija;
         }
 
     }
@@ -233,123 +233,123 @@ vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int
     double w = 0.729;
     double c1 = 1.49445;
     double c2 = 1.49445;
-    vector<int> sequence(numParticles);
-    iota(sequence.begin(), sequence.end(), 0);
+    vector<int> niz(brojCestica);
+    iota(niz.begin(), niz.end(), 0);
 
-    for (int epoch = 0; epoch < maxEpochs; ++epoch) {
-        if (bestGlobalError < exitError) break;
+    for (int epoha = 0; epoha < maxEpoha; ++epoha) {
+        if (najboljaGlobalnaGreska < zadovoljavajucaGreska) break;
 
         mt19937 rnd(time(NULL));
-        Shuffle(sequence, rnd);
-        for (int i : sequence) {
-            Particle& currP = swarm[i];
-            for (int j = 0; j < numWeights; ++j) {
-                double r1 = distProb(mt);
-                double r2 = distProb(mt);
-                currP.velocity[j] = (w * currP.velocity[j]) +
-                                    (c1 * r1 * (currP.bestPosition[j] - currP.position[j])) +
-                                    (c2 * r2 * (bestGlobalPosition[j] - currP.position[j]));
-                currP.position[j] += currP.velocity[j];
+        Izmijesaj(niz, rnd);
+        for (int i : niz) {
+            Cestica& currP = roj[i];
+            for (int j = 0; j < brojTezina; ++j) {
+                double r1 = distVjerojatnost(mt);
+                double r2 = distVjerojatnost(mt);
+                currP.brzina[j] = (w * currP.brzina[j]) +
+                                    (c1 * r1 * (currP.najboljaPozicija[j] - currP.pozicija[j])) +
+                                    (c2 * r2 * (najboljaGlobalnaPozicija[j] - currP.pozicija[j]));
+                currP.pozicija[j] += currP.brzina[j];
             }
 
-            currP.error = MeanSquaredError(trainData, currP.position);
-            if (currP.error < currP.bestError) {
-                currP.bestError = currP.error;
-                currP.bestPosition = currP.position;
+            currP.greska = SrednjaKvadratnaPogreska(podaciZaTreniranje, currP.pozicija);
+            if (currP.greska < currP.najboljaGreska) {
+                currP.najboljaGreska = currP.greska;
+                currP.najboljaPozicija = currP.pozicija;
             }
 
-            if (currP.error < bestGlobalError) {
-                bestGlobalError = currP.error;
-                bestGlobalPosition = currP.position;
+            if (currP.greska < najboljaGlobalnaGreska) {
+                najboljaGlobalnaGreska = currP.greska;
+                najboljaGlobalnaPozicija = currP.pozicija;
             }
 
         }
     }
-    SetWeights(bestGlobalPosition);
-    return bestGlobalPosition;
+    SetTezine(najboljaGlobalnaPozicija);
+    return najboljaGlobalnaPozicija;
 }
 
-double NeuralNetwork::Accuracy(const vector<vector<double>>& data, int dataType, map<string, int> testRun) {
+double NeuronskaMrezna::Tocnost(const vector<vector<double>>& podaci, int vrstaPodataka, map<string, int> testnoPokretanje) {
     int numCorrect = 0;
     int numWrong = 0;
 
     vector<vector<int>> all_results;
 
-    for (const auto& row : data) {
-        vector<double> xValues(row.begin(), row.begin() + numInput);
-        int actual = max_element(row.begin() + numInput, row.end()) - (row.begin() + numInput);
-        vector<double> yValues = ComputeOutputs(xValues);
-        int predicted = max_element(yValues.begin(), yValues.end()) - yValues.begin();
+    for (const auto& row : podaci) {
+        vector<double> xVrijednosti(row.begin(), row.begin() + brojUlaznih);
+        int actual = max_element(row.begin() + brojUlaznih, row.end()) - (row.begin() + brojUlaznih);
+        vector<double> yVrijednosti = IzracunajIzlaze(xVrijednosti);
+        int predicted = max_element(yVrijednosti.begin(), yVrijednosti.end()) - yVrijednosti.begin();
 
         vector<int> current_results;
-        current_results.push_back(testRun[dataset_name]);
+        current_results.push_back(testnoPokretanje[dataset_naziv]);
         current_results.push_back(actual);
         current_results.push_back(predicted);
-        current_results.push_back(dataType);
+        current_results.push_back(vrstaPodataka);
         all_results.push_back(current_results);
 
-        actual != predicted ? cout << " Krivo pogodio [" << dataset_name << "] <iteracija: " << all_results.size() << ">\t" << actual << " vs " << predicted << endl : cout << "";
+        actual != predicted ? cout << " Krivo pogodio [" << dataset_naziv << "] <iteracija: " << all_results.size() << ">\t" << actual << " vs " << predicted << endl : cout << "";
 
         if (predicted == actual) ++numCorrect;
         else ++numWrong;
     }
-    CSVWriter::writeCSV(dataset_name + "-outputs.csv", all_results, "TestRun,Actual,Predicted,Train(0)OrTest(1)");
+    CSVWriter::writeCSV(dataset_naziv + "-izlazi.csv", all_results, "TestRun,Actual,Predicted,Train(0)OrTest(1)");
 
     vector<int> numCorrectWrong;
-    numCorrectWrong.push_back(testRun[dataset_name]);
+    numCorrectWrong.push_back(testnoPokretanje[dataset_naziv]);
     numCorrectWrong.push_back(numCorrect);
     numCorrectWrong.push_back(numWrong);
-    numCorrectWrong.push_back(dataType);
+    numCorrectWrong.push_back(vrstaPodataka);
     vector<vector<int>> numCorrectWrongData;
     numCorrectWrongData.push_back(numCorrectWrong);
 
-    CSVWriter::writeCSV(dataset_name + "-distribution.csv", numCorrectWrongData, "TestRun,NumCorrect,NumWrong,Train(0)OrTest(1)");
+    CSVWriter::writeCSV(dataset_naziv + "-distribution.csv", numCorrectWrongData, "TestRun,NumCorrect,NumWrong,Train(0)OrTest(1)");
 
     return static_cast<double>(numCorrect) / (numCorrect + numWrong);
 }
 
-class Particle {
+class Cestica {
 public:
-    Particle(const vector<double>& position, double error, const vector<double>& velocity, const vector<double>& bestPosition, double bestError);
+    Cestica(const vector<double>& pozicija, double greska, const vector<double>& brzina, const vector<double>& najboljaPozicija, double najboljaGreska);
 
-    vector<double> position;
-    double error;
-    vector<double> velocity;
-    vector<double> bestPosition;
-    double bestError;
+    vector<double> pozicija;
+    double greska;
+    vector<double> brzina;
+    vector<double> najboljaPozicija;
+    double najboljaGreska;
 };
 
-Particle::Particle(const vector<double>& position, double error, const vector<double>& velocity, const vector<double>& bestPosition, double bestError)
-    : position(position), error(error), velocity(velocity), bestPosition(bestPosition), bestError(bestError) {}
+Cestica::Cestica(const vector<double>& pozicija, double greska, const vector<double>& brzina, const vector<double>& najboljaPozicija, double najboljaGreska)
+    : pozicija(pozicija), greska(greska), brzina(brzina), najboljaPozicija(najboljaPozicija), najboljaGreska(najboljaGreska) {}
 
-void runDataset(int dataset, int iteration = 1) {
-    string dataset_name = "";
-    double rangeMin, rangeMax;
-    map<string, int> testRun;
+void pokreni(int dataset, int iteracija = 1) {
+    string dataset_naziv = "";
+    double rasponMin, rasponMax;
+    map<string, int> testnoPokretanje;
     switch(dataset) {
         case 1:
-            dataset_name = "IRIS";
-            rangeMin = -1.0;
-            rangeMax = 1.0;
+            dataset_naziv = "IRIS";
+            rasponMin = -1.0;
+            rasponMax = 1.0;
             break;
         case 2:
-            dataset_name = "PENGUINS";
-            rangeMin = -106.0;
-            rangeMax = 106.0;
+            dataset_naziv = "PENGUINS";
+            rasponMin = -106.0;
+            rasponMax = 106.0;
             break;
         case 3:
-            dataset_name = "MINES";
-            rangeMin = -5.0;
-            rangeMax = 5.0;
+            dataset_naziv = "MINES";
+            rasponMin = -5.0;
+            rasponMax = 5.0;
             break;
         default:
-            dataset_name = "ERROR";
+            dataset_naziv = "ERROR";
             break;
     }
-    cout << " << Training neural network on dataset " << dataset_name << endl;
+    cout << " << Treniranje neuronske mreze na datesetu " << dataset_naziv << endl;
 
-    string file_name = dataset_name + ".csv";
-    testRun.insert({ dataset_name, iteration });
+    string nazivDatoteke = dataset_naziv + ".csv";
+    testnoPokretanje.insert({ dataset_naziv, iteracija });
 
     /* Neki su datasetovi sortirani, sto nije pogodno za treniranje neuronske mreže.
      *
@@ -362,32 +362,32 @@ void runDataset(int dataset, int iteration = 1) {
      * naizmjenice pojavljuje
     */
     // stvara probleme kod višedretvenosti pa je isključeno nakon prvog pokretanja
-    // CSVReader::shuffleCSV(file_name); // iskljuciti u slucaju da je dataset vec pomijesan
+    // CSVReader::shuffleCSV(nazivDatoteke); // iskljuciti u slucaju da je dataset vec pomijesan
 
-    vector<vector<double>> trainData = CSVReader::readFirstNRows(file_name, CSVReader::numRows(file_name) * .5);
-    vector<vector<double>> testData = CSVReader::readFromRowN(file_name, CSVReader::numRows(file_name) * .5);
+    vector<vector<double>> podaciZaTreniranje = CSVReader::readFirstNRows(nazivDatoteke, CSVReader::numRows(nazivDatoteke) * .5);
+    vector<vector<double>> testniPodaci = CSVReader::readFromRowN(nazivDatoteke, CSVReader::numRows(nazivDatoteke) * .5);
 
     try {
         
-        NeuralNetwork neuralNetwork(4, 6, 5, 3, dataset_name, rangeMin, rangeMax);
+        NeuronskaMrezna neuronskaMrezna(4, 6, 5, 3, dataset_naziv, rasponMin, rasponMax);
 
-        cout << " [" << dataset_name << "]\tTraining the neural network..." << endl << endl;
-        vector<double> best = neuralNetwork.Train(trainData, 10, 1200, 0.05);
+        cout << " [" << dataset_naziv << "]\tTreniranje neuronske mreze..." << endl << endl;
+        vector<double> najbolje = neuronskaMrezna.Treniraj(podaciZaTreniranje, 10, 1200, 0.05);
 
-        cout << endl << " [" << dataset_name << "]\tTraining finished" << endl << endl;
-        neuralNetwork.SetWeights(best);
+        cout << endl << " [" << dataset_naziv << "]\tTreniranje je gotovo" << endl << endl;
+        neuronskaMrezna.SetTezine(najbolje);
 
-        cout << " [" << dataset_name << "]\tTesting training accuracy..." << endl << endl;
-        double trainAcc = neuralNetwork.Accuracy(trainData, 0, testRun);
+        cout << " [" << dataset_naziv << "]\tTestiranje tocnosti treninga..." << endl << endl;
+        double tocnostTrening = neuronskaMrezna.Tocnost(podaciZaTreniranje, 0, testnoPokretanje);
 
-        cout << endl << " [" << dataset_name << "]\tTesting test accuracy..." << endl << endl;
-        double testAcc = neuralNetwork.Accuracy(testData, 1, testRun);
+        cout << endl << " [" << dataset_naziv << "]\tTestiranje tocnosti testiranja..." << endl << endl;
+        double tocnostTestiranje = neuronskaMrezna.Tocnost(testniPodaci, 1, testnoPokretanje);
         cout << endl;
 
-        cout << " [" << dataset_name << "]\tTraining accuracy = " << trainAcc << endl;
-        cout << " [" << dataset_name << "]\tTest accuracy = " << testAcc << endl;
+        cout << " [" << dataset_naziv << "]\tTocnost treninga = " << tocnostTrening << endl;
+        cout << " [" << dataset_naziv << "]\tTocnost testiranja = " << tocnostTestiranje << endl;
 
-        testRun[dataset_name]++;
+        testnoPokretanje[dataset_naziv]++;
 
     } catch (const exception& ex) {
         cout << ex.what() << endl;
@@ -424,14 +424,14 @@ int main() {
             vector<thread> threads;
             for (int i = 0; i < numTestRuns; ++i)
                 for (int j = 1; j <= 3; ++j) {
-                    threads.push_back(thread(runDataset, j, i + 1));
+                    threads.push_back(thread(pokreni, j, i + 1));
                     // Podaci se u datoteku upisuju prebrzo. Posljedica toga je spajanje redaka ili preskakanje redaka
                     sleep(2); // 2s je dovoljno da svaka dretva jedna za drugom pravilno upisuje podatke u .csv, ali
                     // je dobro svejedno provjeravati za svaki slučaj.
                 }
             for (auto& t : threads) t.join();
             
-        } else runDataset(dataset);
+        } else pokreni(dataset);
     }
 
 	return 0;
