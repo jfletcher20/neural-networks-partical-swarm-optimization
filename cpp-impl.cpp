@@ -4,9 +4,11 @@
 #include <algorithm>
 #include <stdexcept>
 #include <iostream>
+#include <unistd.h>
 #include <iomanip>
 #include <limits>
 #include <random>
+#include <thread>
 #include <vector>
 #include <string>
 #include <cmath>
@@ -14,53 +16,25 @@
 
 using namespace std;
 
-string dataset_name = "";
-double rangeMin, rangeMax;
-map<string, int> testRun;
-
-void ShowVector(const vector<double>& vector, int valsPerRow, int decimals, bool newLine) {
-    for (size_t i = 0; i < vector.size(); ++i) {
-        if (i % valsPerRow == 0) cout << endl;
-        cout << fixed << setprecision(decimals) << vector[i] << " ";
-    }
-    if (newLine) cout << endl;
-}
-
-void ShowMatrix(const vector<vector<double>>& matrix, int decimals, bool newLine) {
-    for (size_t i = 0; i < matrix.size(); ++i) {
-        cout << setw(3) << i << ": ";
-        for (size_t j = 0; j < matrix[i].size(); ++j) {
-            cout << fixed << setprecision(decimals) << matrix[i][j] << " ";
-        }
-        cout << endl;
-    }
-    if (newLine) cout << endl;
-}
-
 class NeuralNetwork {
 public:
-    NeuralNetwork(int numInput, int numHidden, unsigned int numHiddenLayers, int numOutput);
+    NeuralNetwork(int numInput, int numHidden, unsigned int numHiddenLayers, int numOutput, string dataset_name, double rangeMin, double rangeMax);
 
     void SetWeights(const vector<double>& weights);
     vector<double> GetWeights() const;
     vector<double> ComputeOutputs(const vector<double>& xValues);
     vector<double> Train(const vector<vector<double>>& trainData, int numParticles, int maxEpochs, double exitError);
-    double Accuracy(const vector<vector<double>>& data, int dataType);
+    double Accuracy(const vector<vector<double>>& data, int dataType, map<string, int> testRun);
     int numWeights;
 
 private:
-    int numInput;
-    int numHidden;
+    string dataset_name;
+    double rangeMin, rangeMax;
+    int numInput, numHidden, numOutput;
     unsigned int numHiddenLayers;
-    int numOutput;
-    vector<double> inputs;
-    vector<vector<double>> ihWeights;
+    vector<vector<double>> hBiases, ihWeights, hoWeights;
     vector<vector<vector<double>>> hhWeights;
-    vector<vector<double>> hBiases;
-    vector<vector<double>> hOutputs;
-    vector<vector<double>> hoWeights;
-    vector<double> oBiases;
-    vector<double> outputs;
+    vector<double> inputs, outputs, oBiases, hOutputs;
 
     vector<vector<double>> MakeMatrix(int rows, int cols);
     double HyperTanFunction(double x);
@@ -69,23 +43,26 @@ private:
     void Shuffle(vector<int>& sequence, mt19937& rnd);
 };
 
-NeuralNetwork::NeuralNetwork(int numInput, int numHidden, unsigned int numHiddenLayers, int numOutput)
+NeuralNetwork::NeuralNetwork(int numInput, int numHidden, unsigned int numHiddenLayers, int numOutput, string dataset_name, double rangeMin, double rangeMax)
     : numInput(numInput), numHidden(numHidden), numHiddenLayers(numHiddenLayers), numOutput(numOutput),
-      inputs(numInput), hOutputs(numHiddenLayers, vector<double>(numHidden)),
-      oBiases(numOutput), outputs(numOutput) {
+      inputs(numInput), hOutputs(numHidden),
+      oBiases(numOutput), outputs(numOutput), dataset_name(dataset_name), rangeMin(rangeMin), rangeMax(rangeMax) {
 
-    numWeights = (numInput * numHidden) + (numHiddenLayers - 1) * (numHidden * numHidden) + (numHidden * numOutput) +
-                 numHiddenLayers * numHidden + numOutput;
+    numWeights = (numInput * numHidden) + (numHidden * numOutput);
+    numWeights += numHiddenLayers * (numHidden * numHidden) + numHiddenLayers * numHidden + numOutput;
+
     ihWeights = MakeMatrix(numInput, numHidden);
     hBiases = MakeMatrix(numHiddenLayers, numHidden);
-    for (unsigned int i = 0; i < numHiddenLayers - 1; ++i) {
+
+    for(int i = 0; i < numHiddenLayers; i++)
         hhWeights.push_back(MakeMatrix(numHidden, numHidden));
-    }
+
     hoWeights = MakeMatrix(numHidden, numOutput);
 }
 
 vector<vector<double>> NeuralNetwork::MakeMatrix(int rows, int cols) {
-    return vector<vector<double>>(rows, vector<double>(cols));
+    vector<vector<double>> result(rows, vector<double>(cols));
+    return result;
 }
 
 void NeuralNetwork::SetWeights(const vector<double>& weights) {
@@ -96,20 +73,14 @@ void NeuralNetwork::SetWeights(const vector<double>& weights) {
     for (int i = 0; i < numInput; ++i)
         for (int j = 0; j < numHidden; ++j)
             ihWeights[i][j] = weights[k++];
-
-    for (unsigned int l = 0; l < numHiddenLayers - 1; ++l)
-        for (int i = 0; i < numHidden; ++i)
-            for (int j = 0; j < numHidden; ++j)
-                hhWeights[l][i][j] = weights[k++];
-
-    for (unsigned int l = 0; l < numHiddenLayers; ++l)
-        for (int i = 0; i < numHidden; ++i)
-            hBiases[l][i] = weights[k++];
-
+    for (int i = 0; i < numHiddenLayers; ++i)
+        for (int j = 0; j < numHidden; ++j) {
+            hBiases[i][j] = weights[k++];
+            for (int lj = 0; lj < numHidden; ++lj) hhWeights[i][j][lj] = weights[k++];
+        }
     for (int i = 0; i < numHidden; ++i)
         for (int j = 0; j < numOutput; ++j)
             hoWeights[i][j] = weights[k++];
-
     for (int i = 0; i < numOutput; ++i)
         oBiases[i] = weights[k++];
 }
@@ -117,27 +88,17 @@ void NeuralNetwork::SetWeights(const vector<double>& weights) {
 vector<double> NeuralNetwork::GetWeights() const {
     vector<double> result(numWeights);
     int k = 0;
-
     for (int i = 0; i < numInput; ++i)
         for (int j = 0; j < numHidden; ++j)
             result[k++] = ihWeights[i][j];
-
-    for (unsigned int l = 0; l < numHiddenLayers - 1; ++l)
-        for (int i = 0; i < numHidden; ++i)
-            for (int j = 0; j < numHidden; ++j)
-                result[k++] = hhWeights[l][i][j];
-
-    for (unsigned int l = 0; l < numHiddenLayers; ++l)
-        for (int i = 0; i < numHidden; ++i)
-            result[k++] = hBiases[l][i];
-
+    for (int i = 0; i < numHiddenLayers; ++i)
+        for (int j = 0; j < numHidden; ++j)
+        result[k++] = hBiases[i][j];
     for (int i = 0; i < numHidden; ++i)
         for (int j = 0; j < numOutput; ++j)
             result[k++] = hoWeights[i][j];
-
     for (int i = 0; i < numOutput; ++i)
         result[k++] = oBiases[i];
-
     return result;
 }
 
@@ -148,43 +109,28 @@ vector<double> NeuralNetwork::ComputeOutputs(const vector<double>& xValues) {
     vector<double> hSums(numHidden, 0.0);
     vector<double> oSums(numOutput, 0.0);
 
-    for (int i = 0; i < numInput; ++i)
+    for (size_t i = 0; i < xValues.size(); ++i)
         inputs[i] = xValues[i];
 
-    // input za prvi skriveni sloj
     for (int j = 0; j < numHidden; ++j)
         for (int i = 0; i < numInput; ++i)
             hSums[j] += inputs[i] * ihWeights[i][j];
 
-    for (int j = 0; j < numHidden; ++j)
-        hSums[j] += hBiases[0][j];
+    for (int i = 0; i < numHiddenLayers; ++i)
+			for (int j = 0; j < numHidden; ++j)
+				hSums[i] += hBiases[i][j];
 
     for (int i = 0; i < numHidden; ++i)
-        hOutputs[0][i] = HyperTanFunction(hSums[i]);
+        hOutputs[i] = HyperTanFunction(hSums[i]);
 
-    // prijenos tezina sa skrivenog sloja na skriveni sloj
-    for (unsigned int l = 1; l < numHiddenLayers; ++l) {
-        fill(hSums.begin(), hSums.end(), 0.0);
-        for (int j = 0; j < numHidden; ++j)
-            for (int i = 0; i < numHidden; ++i)
-                hSums[j] += hOutputs[l-1][i] * hhWeights[l-1][i][j];
-
-        for (int j = 0; j < numHidden; ++j)
-            hSums[j] += hBiases[l][j];
-
-        for (int i = 0; i < numHidden; ++i)
-            hOutputs[l][i] = HyperTanFunction(hSums[i]);
-    }
-
-    // prijenos tezina sa skrivenog sloja na izlazni sloj
     for (int j = 0; j < numOutput; ++j)
         for (int i = 0; i < numHidden; ++i)
-            oSums[j] += hOutputs[numHiddenLayers-1][i] * hoWeights[i][j];
+            oSums[j] += hOutputs[i] * hoWeights[i][j];
 
     for (int i = 0; i < numOutput; ++i)
         oSums[i] += oBiases[i];
 
-    vector<double> softOut = Softmax(oSums);
+		vector<double> softOut = Softmax(oSums);
     copy(softOut.begin(), softOut.end(), outputs.begin());
 
     return outputs;
@@ -246,21 +192,22 @@ vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int
 
     vector<Particle> swarm(numParticles);
     for (auto& particle : swarm) {
+
         particle.position.resize(numWeights);
-        for (double& w : particle.position) {
-            w = distPosition(mt);
-        }
+        for (double& w : particle.position) w = distPosition(mt);
+
         particle.velocity.resize(numWeights);
-        for (double& v : particle.velocity) {
-            v = distVelocity(mt);
-        }
+        for (double& v : particle.velocity) v = distVelocity(mt);
+
         particle.bestPosition = particle.position;
         particle.error = MeanSquaredError(trainData, particle.position);
         particle.bestError = particle.error;
+
         if (particle.error < bestGlobalError) {
             bestGlobalError = particle.error;
             bestGlobalPosition = particle.position;
         }
+
     }
 
     double w = 0.729;
@@ -302,7 +249,7 @@ vector<double> NeuralNetwork::Train(const vector<vector<double>>& trainData, int
     return bestGlobalPosition;
 }
 
-double NeuralNetwork::Accuracy(const vector<vector<double>>& data, int dataType) {
+double NeuralNetwork::Accuracy(const vector<vector<double>>& data, int dataType, map<string, int> testRun) {
     int numCorrect = 0;
     int numWrong = 0;
 
@@ -313,7 +260,6 @@ double NeuralNetwork::Accuracy(const vector<vector<double>>& data, int dataType)
         int actual = max_element(row.begin() + numInput, row.end()) - (row.begin() + numInput);
         vector<double> yValues = ComputeOutputs(xValues);
         int predicted = max_element(yValues.begin(), yValues.end()) - yValues.begin();
-        cout << (actual == predicted ? "  \t" : " X\t") << actual << " vs " << predicted << endl;
 
         vector<int> current_results;
         current_results.push_back(testRun[dataset_name]);
@@ -322,11 +268,10 @@ double NeuralNetwork::Accuracy(const vector<vector<double>>& data, int dataType)
         current_results.push_back(dataType);
         all_results.push_back(current_results);
 
-        if (predicted == actual) {
-            ++numCorrect;
-        } else {
-            ++numWrong;
-        }
+        actual != predicted ? cout << " Krivo pogodio [" << dataset_name << "] <iteracija: " << all_results.size() << ">\t" << actual << " vs " << predicted << endl : cout << "";
+
+        if (predicted == actual) ++numCorrect;
+        else ++numWrong;
     }
     CSVWriter::writeCSV(dataset_name + "-outputs.csv", all_results, "TestRun,Actual,Predicted,Train(0)OrTest(1)");
 
@@ -343,7 +288,6 @@ double NeuralNetwork::Accuracy(const vector<vector<double>>& data, int dataType)
     return static_cast<double>(numCorrect) / (numCorrect + numWrong);
 }
 
-
 class Particle {
 public:
     Particle(const vector<double>& position, double error, const vector<double>& velocity, const vector<double>& bestPosition, double bestError);
@@ -358,8 +302,10 @@ public:
 Particle::Particle(const vector<double>& position, double error, const vector<double>& velocity, const vector<double>& bestPosition, double bestError)
     : position(position), error(error), velocity(velocity), bestPosition(bestPosition), bestError(bestError) {}
 
-
-void runDataset(int dataset) {
+void runDataset(int dataset, int iteration = 1) {
+    string dataset_name = "";
+    double rangeMin, rangeMax;
+    map<string, int> testRun;
     switch(dataset) {
         case 1:
             dataset_name = "IRIS";
@@ -380,37 +326,46 @@ void runDataset(int dataset) {
             dataset_name = "ERROR";
             break;
     }
+    cout << " << Training neural network on dataset " << dataset_name << endl;
 
     string file_name = dataset_name + ".csv";
-    testRun.insert({ dataset_name, 1 });
+    testRun.insert({ dataset_name, iteration });
 
-    // originalni IRIS dataset je po redu prvih 50 redova Iris-setosa, zatim 50 redova Iris-versicolor, te na kraju 50 redova Iris-virginica
-    // to nije pogodno za treniranje jer će neuronska mreža imati više podataka za Iris-setosa nego za Iris-versicolor i Iris-virginica ovisno o količini podataka koje uzmemo
-    // stoga je potrebno pomiješati podatke, ili ih rasporediti tako da se svaka klasa naizmjenice pojavljuje
-    CSVReader::shuffleCSV(file_name);
+    /* Neki su datasetovi sortirani, sto nije pogodno za treniranje neuronske mreže.
+     *
+     * Npr.: IRIS dataset po redu ima 50 Iris-setosa, 50 versicolor, te 50 virginica
+     * To nije pogodno za treniranje jer se uzimaju prvih 50% podataka za treniranje,
+     * te će neuronska mreža imati više podataka za setosa nego za ostale klase, ovisno
+     * o količini podataka koje uzmemo.
+     * 
+     * Stoga je potrebno pomiješati podatke, ili ih rasporediti tako da se svaka klasa
+     * naizmjenice pojavljuje
+    */
+    // stvara probleme kod višedretvenosti pa je isključeno nakon prvog pokretanja
+    // CSVReader::shuffleCSV(file_name); // iskljuciti u slucaju da je dataset vec pomijesan
 
     vector<vector<double>> trainData = CSVReader::readFirstNRows(file_name, CSVReader::numRows(file_name) * .5);
     vector<vector<double>> testData = CSVReader::readFromRowN(file_name, CSVReader::numRows(file_name) * .5);
 
     try {
-        NeuralNetwork neuralNetwork(4, 6, 5, 3);
-        cout << "Training the neural network..." << endl << endl;
+        
+        NeuralNetwork neuralNetwork(4, 6, 5, 3, dataset_name, rangeMin, rangeMax);
+
+        cout << " [" << dataset_name << "]\tTraining the neural network..." << endl << endl;
         vector<double> best = neuralNetwork.Train(trainData, 10, 1200, 0.05);
 
-        ShowVector(best, 10, 3, true);
-
-        cout << endl << "Training finished" << endl << endl;
+        cout << endl << " [" << dataset_name << "]\tTraining finished" << endl << endl;
         neuralNetwork.SetWeights(best);
 
-        cout << "Testing training accuracy..." << endl << endl;
-        double trainAcc = neuralNetwork.Accuracy(trainData, 0);
+        cout << " [" << dataset_name << "]\tTesting training accuracy..." << endl << endl;
+        double trainAcc = neuralNetwork.Accuracy(trainData, 0, testRun);
 
-        cout << endl << "Testing test accuracy..." << endl << endl;
-        double testAcc = neuralNetwork.Accuracy(testData, 1);
+        cout << endl << " [" << dataset_name << "]\tTesting test accuracy..." << endl << endl;
+        double testAcc = neuralNetwork.Accuracy(testData, 1, testRun);
         cout << endl;
 
-        cout << "Training accuracy = " << trainAcc << endl;
-        cout << "Test accuracy = " << testAcc << endl;
+        cout << " [" << dataset_name << "]\tTraining accuracy = " << trainAcc << endl;
+        cout << " [" << dataset_name << "]\tTest accuracy = " << testAcc << endl;
 
         testRun[dataset_name]++;
 
@@ -419,7 +374,6 @@ void runDataset(int dataset) {
     }
 }
 
-
 int main() {
     cout << "\nSeminar: Implementacija neuronske mreze nad podacima izabranog dataseta, koristeci PSO.\n";
     cout << "Autori: Joshua Lee Fletcher, Noa Midzic, Marko Novak\n";
@@ -427,7 +381,8 @@ int main() {
     int dataset = 0;
 
     while (true) {
-        cout << "Odaberite koji dataset želite koristiti (1, 2, 3) ili 0 za izlaz, ili 4 za ponovljene testove: " << endl;
+        cout << endl << " >---------------------------------------[ >- NN+PSO -< ]---------------------------------------<" << endl << endl;
+        cout << endl << "  Odaberite koji dataset zelite koristiti (1, 2, 3) ili 0 za izlaz, ili 4 za ponovljene testove: " << endl << endl;
         cout << "\t0 - Izlaz" << endl;
         cout << "\t1 - IRIS.csv" << endl;
         cout << "\t2 - PENGUINS.csv" << endl;
@@ -437,24 +392,26 @@ int main() {
 
         if (dataset == 0) break;
         if (!dataset || dataset > 4) {
-            cout << "Nevažeći unos, pokušajte ponovo." << endl;
+            cout << "Nevazeci unos, pokusajte ponovo." << endl;
             continue;
         }
-
         if (dataset == 4) {
             int numTestRuns = 0;
             cout << "Unesite broj ponovljenih testova: ";
             cin >> numTestRuns;
             cout << endl;
 
-            for (int i = 0; i < numTestRuns; ++i) {
-                for (int ds = 1; ds <= 3; ++ds) {
-                    runDataset(ds);
+            vector<thread> threads;
+            for (int i = 0; i < numTestRuns; ++i)
+                for (int j = 1; j <= 3; ++j) {
+                    threads.push_back(thread(runDataset, j, i + 1));
+                    // Podaci se u datoteku upisuju prebrzo. Posljedica toga je spajanje redaka ili preskakanje redaka
+                    sleep(2); // 2s je dovoljno da svaka dretva jedna za drugom pravilno upisuje podatke u .csv, ali
+                    // je dobro svejedno provjeravati za svaki slučaj.
                 }
-            }
-        } else {
-            runDataset(dataset);
-        }
+            for (auto& t : threads) t.join();
+            
+        } else runDataset(dataset);
     }
 
 	return 0;
