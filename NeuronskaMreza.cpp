@@ -216,23 +216,23 @@ double NeuronskaMrezna::Tocnost(const vector<vector<double>>& podaci, int vrstaP
 
     for (const auto& row : podaci) {
         vector<double> xVrijednosti(row.begin(), row.begin() + brojUlaznih);
-        int stvardni = max_element(row.begin() + brojUlaznih, row.end()) - (row.begin() + brojUlaznih);
+        int stvarni = max_element(row.begin() + brojUlaznih, row.end()) - (row.begin() + brojUlaznih);
         vector<double> yVrijednosti = IzracunajIzlaze(xVrijednosti);
         int predvideni = max_element(yVrijednosti.begin(), yVrijednosti.end()) - yVrijednosti.begin();
 
         vector<int> trenutniRezultati;
         trenutniRezultati.push_back(testnoPokretanje[dataset_naziv]);
-        trenutniRezultati.push_back(stvardni);
+        trenutniRezultati.push_back(stvarni);
         trenutniRezultati.push_back(predvideni);
         trenutniRezultati.push_back(vrstaPodataka);
         sviRezultati.push_back(trenutniRezultati);
 
-        stvardni != predvideni ? cout << " Krivo pogodio [" << dataset_naziv << "] <iteracija: " << sviRezultati.size() << ">\t" << stvardni << " vs " << predvideni << endl : cout << "";
+        stvarni != predvideni ? cout << " Krivo pogodio [" << dataset_naziv << "] <iteracija: " << sviRezultati.size() << ">\t" << stvarni << " vs " << predvideni << endl : cout << "";
 
-        if (predvideni == stvardni) ++brojTocnih;
+        if (predvideni == stvarni) ++brojTocnih;
         else ++brojKrivih;
     }
-    CSVWriter::writeCSV(dataset_naziv + "-izlazi.csv", sviRezultati, "TestRun,stvardni,predvideni,Train(0)OrTest(1)");
+    CSVWriter::writeCSV(dataset_naziv + "-izlazi.csv", sviRezultati, "TestRun,stvarni,predvideni,Train(0)OrTest(1)");
 
     vector<int> brojTocnihKrivih;
     brojTocnihKrivih.push_back(testnoPokretanje[dataset_naziv]);
