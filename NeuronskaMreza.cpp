@@ -47,25 +47,6 @@ void NeuronskaMrezna::SetTezine(const vector<double>& tezine) {
         izlazniBiasevi[i] = tezine[k++];
 }
 
-vector<double> NeuronskaMrezna::GetTezine() const {
-    vector<double> rezultat(brojTezina);
-    int k = 0;
-    
-    for (int i = 0; i < brojUlaznih; ++i)
-        for (int j = 0; j < brojSkrivenih; ++j)
-            rezultat[k++] = ulazSkriveneTezine[i][j];
-    for (int i = 0; i < brojSkrivenihSlojeva; ++i)
-        for (int j = 0; j < brojSkrivenih; ++j)
-        rezultat[k++] = skriveniBiasevi[i][j];
-    for (int i = 0; i < brojSkrivenih; ++i)
-        for (int j = 0; j < brojIzlaznih; ++j)
-            rezultat[k++] = skriveneIzlazTezine[i][j];
-    for (int i = 0; i < brojIzlaznih; ++i)
-        rezultat[k++] = izlazniBiasevi[i];
-
-    return rezultat;
-}
-
 vector<double> NeuronskaMrezna::IzracunajIzlaze(const vector<double>& xVrijednosti) {
     if (xVrijednosti.size() != brojUlaznih)
         throw runtime_error("Neispravna duljina polja xVrijednosti");
