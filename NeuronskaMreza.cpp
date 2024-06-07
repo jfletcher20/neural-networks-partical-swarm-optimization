@@ -205,7 +205,6 @@ vector<double> NeuronskaMrezna::Treniraj(const vector<vector<double>>& podaciZaT
 
         }
     }
-    SetTezine(najboljaGlobalnaPozicija);
     return najboljaGlobalnaPozicija;
 }
 
