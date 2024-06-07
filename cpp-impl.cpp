@@ -242,25 +242,25 @@ vector<double> NeuronskaMrezna::Treniraj(const vector<vector<double>>& podaciZaT
         mt19937 rnd(time(NULL));
         Izmijesaj(niz, rnd);
         for (int i : niz) {
-            Cestica& currP = roj[i];
+            Cestica& cestica = roj[i];
             for (int j = 0; j < brojTezina; ++j) {
                 double r1 = distVjerojatnost(mt);
                 double r2 = distVjerojatnost(mt);
-                currP.brzina[j] = (w * currP.brzina[j]) +
-                                    (c1 * r1 * (currP.najboljaPozicija[j] - currP.pozicija[j])) +
-                                    (c2 * r2 * (najboljaGlobalnaPozicija[j] - currP.pozicija[j]));
-                currP.pozicija[j] += currP.brzina[j];
+                cestica.brzina[j] = (w * cestica.brzina[j]) +
+                                    (c1 * r1 * (cestica.najboljaPozicija[j] - cestica.pozicija[j])) +
+                                    (c2 * r2 * (najboljaGlobalnaPozicija[j] - cestica.pozicija[j]));
+                cestica.pozicija[j] += cestica.brzina[j];
             }
 
-            currP.greska = SrednjaKvadratnaPogreska(podaciZaTreniranje, currP.pozicija);
-            if (currP.greska < currP.najboljaGreska) {
-                currP.najboljaGreska = currP.greska;
-                currP.najboljaPozicija = currP.pozicija;
+            cestica.greska = SrednjaKvadratnaPogreska(podaciZaTreniranje, cestica.pozicija);
+            if (cestica.greska < cestica.najboljaGreska) {
+                cestica.najboljaGreska = cestica.greska;
+                cestica.najboljaPozicija = cestica.pozicija;
             }
 
-            if (currP.greska < najboljaGlobalnaGreska) {
-                najboljaGlobalnaGreska = currP.greska;
-                najboljaGlobalnaPozicija = currP.pozicija;
+            if (cestica.greska < najboljaGlobalnaGreska) {
+                najboljaGlobalnaGreska = cestica.greska;
+                najboljaGlobalnaPozicija = cestica.pozicija;
             }
 
         }
@@ -270,42 +270,42 @@ vector<double> NeuronskaMrezna::Treniraj(const vector<vector<double>>& podaciZaT
 }
 
 double NeuronskaMrezna::Tocnost(const vector<vector<double>>& podaci, int vrstaPodataka, map<string, int> testnoPokretanje) {
-    int numCorrect = 0;
-    int numWrong = 0;
+    int brojTocnih = 0;
+    int brojKrivih = 0;
 
-    vector<vector<int>> all_results;
+    vector<vector<int>> sviRezultati;
 
     for (const auto& row : podaci) {
         vector<double> xVrijednosti(row.begin(), row.begin() + brojUlaznih);
-        int actual = max_element(row.begin() + brojUlaznih, row.end()) - (row.begin() + brojUlaznih);
+        int stvardni = max_element(row.begin() + brojUlaznih, row.end()) - (row.begin() + brojUlaznih);
         vector<double> yVrijednosti = IzracunajIzlaze(xVrijednosti);
-        int predicted = max_element(yVrijednosti.begin(), yVrijednosti.end()) - yVrijednosti.begin();
+        int predvideni = max_element(yVrijednosti.begin(), yVrijednosti.end()) - yVrijednosti.begin();
 
-        vector<int> current_results;
-        current_results.push_back(testnoPokretanje[dataset_naziv]);
-        current_results.push_back(actual);
-        current_results.push_back(predicted);
-        current_results.push_back(vrstaPodataka);
-        all_results.push_back(current_results);
+        vector<int> trenutniRezultati;
+        trenutniRezultati.push_back(testnoPokretanje[dataset_naziv]);
+        trenutniRezultati.push_back(stvardni);
+        trenutniRezultati.push_back(predvideni);
+        trenutniRezultati.push_back(vrstaPodataka);
+        sviRezultati.push_back(trenutniRezultati);
 
-        actual != predicted ? cout << " Krivo pogodio [" << dataset_naziv << "] <iteracija: " << all_results.size() << ">\t" << actual << " vs " << predicted << endl : cout << "";
+        stvardni != predvideni ? cout << " Krivo pogodio [" << dataset_naziv << "] <iteracija: " << sviRezultati.size() << ">\t" << stvardni << " vs " << predvideni << endl : cout << "";
 
-        if (predicted == actual) ++numCorrect;
-        else ++numWrong;
+        if (predvideni == stvardni) ++brojTocnih;
+        else ++brojKrivih;
     }
-    CSVWriter::writeCSV(dataset_naziv + "-izlazi.csv", all_results, "TestRun,Actual,Predicted,Train(0)OrTest(1)");
+    CSVWriter::writeCSV(dataset_naziv + "-izlazi.csv", sviRezultati, "TestRun,stvardni,predvideni,Train(0)OrTest(1)");
 
-    vector<int> numCorrectWrong;
-    numCorrectWrong.push_back(testnoPokretanje[dataset_naziv]);
-    numCorrectWrong.push_back(numCorrect);
-    numCorrectWrong.push_back(numWrong);
-    numCorrectWrong.push_back(vrstaPodataka);
-    vector<vector<int>> numCorrectWrongData;
-    numCorrectWrongData.push_back(numCorrectWrong);
+    vector<int> brojTocnihKrivih;
+    brojTocnihKrivih.push_back(testnoPokretanje[dataset_naziv]);
+    brojTocnihKrivih.push_back(brojTocnih);
+    brojTocnihKrivih.push_back(brojKrivih);
+    brojTocnihKrivih.push_back(vrstaPodataka);
+    vector<vector<int>> brojTocnihKrivihPodaci;
+    brojTocnihKrivihPodaci.push_back(brojTocnihKrivih);
 
-    CSVWriter::writeCSV(dataset_naziv + "-distribution.csv", numCorrectWrongData, "TestRun,NumCorrect,NumWrong,Train(0)OrTest(1)");
+    CSVWriter::writeCSV(dataset_naziv + "-distribution.csv", brojTocnihKrivihPodaci, "TestRun,brojTocnih,brojKrivih,Train(0)OrTest(1)");
 
-    return static_cast<double>(numCorrect) / (numCorrect + numWrong);
+    return static_cast<double>(brojTocnih) / (brojTocnih + brojKrivih);
 }
 
 class Cestica {
