@@ -106,7 +106,7 @@ int main() {
 
             vector<thread> threads;
             for (int i = 0; i < numTestRuns; ++i)
-                for (int j = 3; j <= 3; ++j) {
+                for (int j = 1; j <= 3; ++j) {
                     threads.push_back(thread(pokreni, j, i + 1));
                     // Podaci se u datoteku upisuju prebrzo. Posljedica toga je spajanje redaka ili preskakanje redaka
                     sleep(2); // 2s je dovoljno da svaka dretva jedna za drugom pravilno upisuje podatke u .csv, ali
