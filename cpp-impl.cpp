@@ -47,8 +47,8 @@ void pokreni(int dataset, int iteracija = 1) {
     // stvara probleme kod višedretvenosti pa je isključeno nakon prvog pokretanja
     // CSVReader::shuffleCSV(nazivDatoteke); // iskljuciti u slucaju da je dataset vec pomijesan
 
-    vector<vector<double>> podaciZaTreniranje = CSVReader::readFirstNRows(nazivDatoteke, CSVReader::numRows(nazivDatoteke) * .5);
-    vector<vector<double>> testniPodaci = CSVReader::readFromRowN(nazivDatoteke, CSVReader::numRows(nazivDatoteke) * .5);
+    vector<vector<double>> podaciZaTreniranje = CSVReader::readFirstNRows(nazivDatoteke, CSVReader::numRows(nazivDatoteke) * .8);
+    vector<vector<double>> testniPodaci = CSVReader::readFromRowN(nazivDatoteke, CSVReader::numRows(nazivDatoteke) * .2);
 
     try {
         
@@ -106,7 +106,7 @@ int main() {
 
             vector<thread> threads;
             for (int i = 0; i < numTestRuns; ++i)
-                for (int j = 1; j <= 3; ++j) {
+                for (int j = 3; j <= 3; ++j) {
                     threads.push_back(thread(pokreni, j, i + 1));
                     // Podaci se u datoteku upisuju prebrzo. Posljedica toga je spajanje redaka ili preskakanje redaka
                     sleep(2); // 2s je dovoljno da svaka dretva jedna za drugom pravilno upisuje podatke u .csv, ali
